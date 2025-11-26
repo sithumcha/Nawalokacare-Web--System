@@ -33,13 +33,58 @@ const Login = () => {
 
       const data = await response.json();
 
-      if (response.ok) {
-        // Save token and user data to localStorage
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
+      // if (response.ok) {
+      //   // Save token and user data to localStorage
+      //   localStorage.setItem('token', data.token);
+      //   localStorage.setItem('user', JSON.stringify(data.user));
+        
+
+//  if (response.ok) {
+//         // ✅ Save current user data
+//         localStorage.setItem('token', data.token);
+//         localStorage.setItem('user', JSON.stringify(data.user));
+//         localStorage.setItem('currentUserId', data.user._id);
+        
+//         // ✅ Get the last logged out user ID before saving new one
+//         const lastLoggedOutUserId = localStorage.getItem('currentUserId');
+//         if (lastLoggedOutUserId) {
+//           localStorage.setItem('lastLoggedOutUserId', lastLoggedOutUserId);
+//           console.log('Last logged out user ID:', lastLoggedOutUserId);
+//         }
+
+
+
+        ///////////////////
+
+        // Login Success Handler
+if (response.ok) {
+    // ✅ FIRST: Get the previous user ID BEFORE saving new data
+    const previousUserId = localStorage.getItem('currentUserId');
+    
+    // ✅ SECOND: Save new user data
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
+    localStorage.setItem('currentUserId', data.user._id);
+    localStorage.setItem('userName', data.user.name);
+    
+    // ✅ THIRD: If there was a previous user, save as last logged out
+    if (previousUserId && previousUserId !== data.user._id) {
+        localStorage.setItem('lastLoggedOutUserId', previousUserId);
+        console.log('Last logged out user ID saved:', previousUserId);
+    }
+    
+   
+        
+
+
+        ////////////////
         
         // Redirect to dashboard or home page
         navigate('/home');
+
+
+
+
       } else {
         setError(data.message || 'Login failed');
       }
@@ -178,3 +223,16 @@ const styles = {
 };
 
 export default Login;
+
+
+
+
+
+
+
+
+
+
+
+
+

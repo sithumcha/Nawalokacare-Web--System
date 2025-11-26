@@ -15,13 +15,70 @@ const Navbar = () => {
     }
   }, []);
 
-  const handleLogout = () => {
+  // const handleLogout = () => {
+  //   localStorage.removeItem('token');
+  //   localStorage.removeItem('user');
+  //   setUser(null);
+  //   navigate('/login');
+  //   setIsDropdownOpen(false);
+  // };
+
+
+
+
+//   const handleLogout = () => {
+//   // ✅ Get current user ID before logout
+//   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+//   const currentUserId = currentUser._id;
+  
+//   if (currentUserId) {
+//     // ✅ Save as last logged out user
+//     localStorage.setItem('lastLoggedOutUserId', currentUserId);
+//     console.log('User logged out. ID:', currentUserId);
+    
+//     // Optional: Save to sessionStorage as well
+//     sessionStorage.setItem('lastLoggedOutUserId', currentUserId);
+//   }
+
+//   // ✅ Clear current user data
+//   localStorage.removeItem('token');
+//   localStorage.removeItem('user');
+//   localStorage.removeItem('currentUserId');
+//   setUser(null);
+  
+//   // Navigate to login
+//   navigate('/login');
+//   setIsDropdownOpen(false);
+// };
+
+
+////////////////////
+
+
+// Logout Function
+const handleLogout = () => {
+    // ✅ Save current user as last logged out BEFORE clearing
+    const currentUserId = localStorage.getItem('currentUserId');
+    if (currentUserId) {
+        localStorage.setItem('lastLoggedOutUserId', currentUserId);
+        console.log('User logged out, ID saved:', currentUserId);
+    }
+    
+    // ✅ Clear current user data
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    setUser(null);
+    localStorage.removeItem('currentUserId');
+    localStorage.removeItem('userName');
+    
+    // Navigate to login
     navigate('/login');
-    setIsDropdownOpen(false);
-  };
+};
+
+
+
+/////////////////////
+
+
 
   const isActiveRoute = (path) => {
     return location.pathname === path;

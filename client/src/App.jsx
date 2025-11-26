@@ -23,6 +23,7 @@ import Home from "./pages/Home";
 import MyAppointments from "./pages/MyAppointments";
 import AppointmentDetails from "./pages/AppointmentDetails";
 import AppointmentsManagement from "./admin/AppointmentsManagement";
+import PaymentPage from "./pages/PaymentPage";
 
 
 
@@ -63,6 +64,7 @@ const App = () => {
         <Route path="/myappointments" element={<MyAppointments />} />
         <Route path="/appointments/:id" element={<AppointmentDetails />} />
         <Route path="/appointmentsmanagement" element={<AppointmentsManagement />} />
+        <Route path="/book/:id/payment" element={<PaymentPage />} />
 
 
 

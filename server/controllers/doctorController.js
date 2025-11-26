@@ -3,8 +3,6 @@
 
 
 
-
-
 // const jwt = require("jsonwebtoken");
 // const Doctor = require("../models/Doctor");
 
@@ -228,10 +226,14 @@
 // exports.addTimeSlot = async (req, res) => {
 //   try {
 //     const { doctorId } = req.params;
-//     const { day, startTime, endTime } = req.body;
+//     const { day, startTime, endTime, quantity } = req.body;
 
-//     if (!day || !startTime || !endTime) {
-//       return res.status(400).json({ error: "Day, start time, and end time are required" });
+//     if (!day || !startTime || !endTime || !quantity) {
+//       return res.status(400).json({ error: "Day, start time, end time, and quantity are required" });
+//     }
+
+//     if (startTime >= endTime) {
+//       return res.status(400).json({ error: "End time must be after start time" });
 //     }
 
 //     const doctor = await Doctor.findById(doctorId);
@@ -239,7 +241,7 @@
 //       return res.status(404).json({ error: "Doctor not found" });
 //     }
 
-//     doctor.availableTimeSlots.push({ day, startTime, endTime });
+//     doctor.availableTimeSlots.push({ day, startTime, endTime, quantity });
 //     await doctor.save();
 
 //     res.status(200).json({
@@ -318,6 +320,31 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+///////////////////////////////
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 const jwt = require("jsonwebtoken");
 const Doctor = require("../models/Doctor");
 
@@ -343,6 +370,7 @@ exports.registerDoctor = async (req, res) => {
       medicalLicenseNumber,
       password,
       price,
+      availableTimeSlots // Added support for time slots during registration
     } = req.body;
 
     // Validation
@@ -379,6 +407,7 @@ exports.registerDoctor = async (req, res) => {
       medicalLicenseNumber,
       password,
       price: Number(price),
+      availableTimeSlots: availableTimeSlots ? JSON.parse(availableTimeSlots) : [] // Parse time slots if provided
     };
 
     const newDoctor = await Doctor.create(doctorData);
@@ -537,14 +566,22 @@ exports.deleteDoctor = async (req, res) => {
   }
 };
 
-// Add available time slot for a doctor
+// Add available time slot for a doctor (UPDATED with consultationType)
 exports.addTimeSlot = async (req, res) => {
   try {
     const { doctorId } = req.params;
-    const { day, startTime, endTime, quantity } = req.body;
+    const { day, startTime, endTime, consultationType, quantity } = req.body;
 
-    if (!day || !startTime || !endTime || !quantity) {
-      return res.status(400).json({ error: "Day, start time, end time, and quantity are required" });
+    if (!day || !startTime || !endTime || !consultationType || !quantity) {
+      return res.status(400).json({ 
+        error: "Day, start time, end time, consultation type, and quantity are required" 
+      });
+    }
+
+    if (!['physical', 'online'].includes(consultationType)) {
+      return res.status(400).json({ 
+        error: "Consultation type must be either 'physical' or 'online'" 
+      });
     }
 
     if (startTime >= endTime) {
@@ -556,11 +593,20 @@ exports.addTimeSlot = async (req, res) => {
       return res.status(404).json({ error: "Doctor not found" });
     }
 
-    doctor.availableTimeSlots.push({ day, startTime, endTime, quantity });
+    const newTimeSlot = {
+      day, 
+      startTime, 
+      endTime, 
+      consultationType,
+      quantity: Number(quantity)
+    };
+
+    doctor.availableTimeSlots.push(newTimeSlot);
     await doctor.save();
 
     res.status(200).json({
       message: "Time slot added successfully",
+      timeSlot: newTimeSlot,
       availableTimeSlots: doctor.availableTimeSlots,
     });
   } catch (error) {
@@ -582,6 +628,37 @@ exports.getTimeSlots = async (req, res) => {
     res.status(200).json({ availableTimeSlots: doctor.availableTimeSlots });
   } catch (error) {
     console.error("Error fetching time slots:", error);
+    res.status(500).json({ error: "Failed to fetch time slots" });
+  }
+};
+
+// Get time slots by consultation type (NEW FUNCTION)
+exports.getTimeSlotsByType = async (req, res) => {
+  try {
+    const { doctorId } = req.params;
+    const { consultationType } = req.query;
+
+    if (!consultationType || !['physical', 'online'].includes(consultationType)) {
+      return res.status(400).json({ 
+        error: "Valid consultation type (physical or online) is required" 
+      });
+    }
+
+    const doctor = await Doctor.findById(doctorId).select("availableTimeSlots");
+    if (!doctor) {
+      return res.status(404).json({ error: "Doctor not found" });
+    }
+
+    const filteredSlots = doctor.availableTimeSlots.filter(
+      slot => slot.consultationType === consultationType
+    );
+
+    res.status(200).json({ 
+      consultationType,
+      availableTimeSlots: filteredSlots 
+    });
+  } catch (error) {
+    console.error("Error fetching time slots by type:", error);
     res.status(500).json({ error: "Failed to fetch time slots" });
   }
 };
@@ -628,3 +705,53 @@ exports.deleteTimeSlot = async (req, res) => {
     res.status(500).json({ error: "Failed to delete time slot" });
   }
 };
+
+// Update a specific time slot (NEW FUNCTION)
+exports.updateTimeSlot = async (req, res) => {
+  try {
+    const { doctorId, slotId } = req.params;
+    const { day, startTime, endTime, consultationType, quantity } = req.body;
+
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor) return res.status(404).json({ error: "Doctor not found" });
+
+    const timeSlot = doctor.availableTimeSlots.id(slotId);
+    if (!timeSlot) return res.status(404).json({ error: "Time slot not found" });
+
+    // Update fields if provided
+    if (day) timeSlot.day = day;
+    if (startTime) timeSlot.startTime = startTime;
+    if (endTime) timeSlot.endTime = endTime;
+    if (consultationType) {
+      if (!['physical', 'online'].includes(consultationType)) {
+        return res.status(400).json({ 
+          error: "Consultation type must be either 'physical' or 'online'" 
+        });
+      }
+      timeSlot.consultationType = consultationType;
+    }
+    if (quantity) timeSlot.quantity = Number(quantity);
+
+    // Validate time order
+    if (timeSlot.startTime >= timeSlot.endTime) {
+      return res.status(400).json({ error: "End time must be after start time" });
+    }
+
+    await doctor.save();
+
+    res.status(200).json({
+      message: "Time slot updated successfully",
+      timeSlot: timeSlot,
+      availableTimeSlots: doctor.availableTimeSlots,
+    });
+  } catch (error) {
+    console.error("Error updating time slot:", error);
+    res.status(500).json({ error: "Failed to update time slot" });
+  }
+};
+
+
+
+
+
+

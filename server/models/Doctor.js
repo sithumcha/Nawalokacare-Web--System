@@ -1,8 +1,7 @@
 
 
-
 // const mongoose = require('mongoose');
-// const bcrypt = require('bcryptjs');
+//  const bcrypt = require('bcryptjs');
 
 // const doctorSchema = new mongoose.Schema(
 //   {
@@ -27,6 +26,7 @@
 //         day: { type: String, required: true }, // Day of the week (e.g., "Monday")
 //         startTime: { type: String, required: true }, // e.g., "09:00 AM"
 //         endTime: { type: String, required: true }, // e.g., "05:00 PM"
+//         quantity: { type: Number, required: true, default: 20 }, // Number of available consultations
 //       },
 //     ],
 //   },
@@ -53,8 +53,14 @@
 
 
 
+
+
+///////////////////////
+
+
+
 const mongoose = require('mongoose');
- const bcrypt = require('bcryptjs');
+const bcrypt = require('bcryptjs');
 
 const doctorSchema = new mongoose.Schema(
   {
@@ -79,6 +85,12 @@ const doctorSchema = new mongoose.Schema(
         day: { type: String, required: true }, // Day of the week (e.g., "Monday")
         startTime: { type: String, required: true }, // e.g., "09:00 AM"
         endTime: { type: String, required: true }, // e.g., "05:00 PM"
+        consultationType: { 
+          type: String, 
+          required: true, 
+          enum: ['physical', 'online'], 
+          default: 'physical' 
+        }, // Type of consultation
         quantity: { type: Number, required: true, default: 20 }, // Number of available consultations
       },
     ],

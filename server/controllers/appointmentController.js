@@ -1,12 +1,12 @@
 
 
-// // controllers/appointmentController.js
 // const Appointment = require("../models/Appointment");
 
-// // controllers/appointmentController.js - createAppointment function එක update කරන්න
+// // Create appointment with user ID
 // exports.createAppointment = async (req, res) => {
 //   try {
 //     const {
+//       userId,  // NEW - Get userId from request body
 //       doctorId,
 //       doctorName,
 //       doctorSpecialization,
@@ -17,6 +17,7 @@
 //     } = req.body;
 
 //     console.log('📅 Creating appointment with data:', {
+//       userId,
 //       doctorId,
 //       timeSlotId,
 //       patientName: patientDetails?.fullName,
@@ -24,6 +25,12 @@
 //     });
 
 //     // Validate required fields
+//     if (!userId) {
+//       return res.status(400).json({
+//         error: "User ID is required"
+//       });
+//     }
+
 //     if (!timeSlotId) {
 //       return res.status(400).json({
 //         error: "Time slot ID is required"
@@ -55,7 +62,7 @@
 
 //     const slotQuantity = doctorTimeSlot.quantity || 20;
 
-//     // Count existing appointments for this slot - FIXED LOGIC
+//     // Count existing appointments for this slot
 //     const existingAppointmentsCount = await Appointment.countDocuments({
 //       doctorId: doctorId,
 //       timeSlotId: timeSlotId,
@@ -94,6 +101,7 @@
 
 //     // Create new appointment
 //     const appointment = new Appointment({
+//       userId,  // NEW - Include userId
 //       doctorId,
 //       doctorName,
 //       doctorSpecialization,
@@ -122,6 +130,7 @@
 //     console.log('✅ Appointment created successfully:', {
 //       id: appointment._id,
 //       appointmentNumber: appointment.appointmentNumber,
+//       userId: userId,
 //       patient: patientDetails.fullName,
 //       timeSlot: timeSlotId,
 //       remainingSlots: slotQuantity - existingAppointmentsCount - 1
@@ -132,6 +141,7 @@
 //       appointment: {
 //         id: appointment._id,
 //         appointmentNumber: appointment.appointmentNumber,
+//         userId: appointment.userId,
 //         patientName: patientDetails.fullName,
 //         appointmentDate: appointment.appointmentDate,
 //         timeSlot: appointment.timeSlot,
@@ -162,7 +172,39 @@
 //   }
 // };
 
-// // Get appointment statistics for a doctor - SINGLE VERSION (Remove the duplicate)
+// // Get appointments by user ID - NEW FUNCTION
+// exports.getAppointmentsByUser = async (req, res) => {
+//   try {
+//     const { userId } = req.params;
+    
+//     console.log(`📋 Fetching appointments for user: ${userId}`);
+    
+//     // Validate userId
+//     if (!userId) {
+//       return res.status(400).json({ error: "User ID is required" });
+//     }
+
+//     const appointments = await Appointment.find({ userId })
+//       .sort({ appointmentDate: -1, createdAt: -1 });
+
+//     console.log(`✅ Found ${appointments.length} appointments for user ${userId}`);
+    
+//     res.status(200).json({
+//       success: true,
+//       message: "Appointments fetched successfully",
+//       appointments: appointments
+//     });
+//   } catch (error) {
+//     console.error("❌ Error fetching user appointments:", error);
+//     res.status(500).json({ 
+//       success: false,
+//       error: "Failed to fetch appointments", 
+//       details: error.message 
+//     });
+//   }
+// };
+
+// // Get appointment statistics for a doctor
 // exports.getAppointmentStats = async (req, res) => {
 //   try {
 //     const { doctorId } = req.params;
@@ -209,6 +251,7 @@
 // exports.getAllAppointments = async (req, res) => {
 //   try {
 //     const appointments = await Appointment.find()
+//       .populate('userId', 'username email')  // NEW - Populate user data
 //       .sort({ appointmentDate: -1, createdAt: -1 });
     
 //     console.log(`Found ${appointments.length} appointments`);
@@ -229,6 +272,7 @@
 //     const { doctorId } = req.params;
     
 //     const appointments = await Appointment.find({ doctorId })
+//       .populate('userId', 'username email')  // NEW - Populate user data
 //       .sort({ appointmentDate: 1, "timeSlot.startTime": 1 });
 
 //     res.status(200).json(appointments);
@@ -246,7 +290,8 @@
 //   try {
 //     const { id } = req.params;
     
-//     const appointment = await Appointment.findById(id);
+//     const appointment = await Appointment.findById(id)
+//       .populate('userId', 'username email');  // NEW - Populate user data
     
 //     if (!appointment) {
 //       return res.status(404).json({ error: "Appointment not found" });
@@ -295,6 +340,109 @@
 //     });
 //   }
 // };
+
+// // Updated cancel function with better logging
+// exports.cancelAppointment = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const { userId, cancellationReason } = req.body;
+
+//     console.log('🎯 Cancel request received:', { id, userId, cancellationReason });
+
+//     const appointment = await Appointment.findById(id);
+    
+//     if (!appointment) {
+//       console.log('❌ Appointment not found for ID:', id);
+//       return res.status(404).json({ 
+//         success: false,
+//         error: "Appointment not found" 
+//       });
+//     }
+
+//     console.log('📋 Found appointment:', {
+//       id: appointment._id,
+//       appointmentUserId: appointment.userId,
+//       requestedUserId: userId,
+//       status: appointment.status
+//     });
+
+//     // Check user ownership - FIXED
+//     if (appointment.userId.toString() !== userId) {
+//       console.log('🚫 User not authorized:', {
+//         appointmentUserId: appointment.userId.toString(),
+//         requestedUserId: userId
+//       });
+//       return res.status(403).json({ 
+//         success: false,
+//         error: "You are not authorized to cancel this appointment" 
+//       });
+//     }
+
+//     // Check status
+//     if (!["pending", "confirmed"].includes(appointment.status)) {
+//       console.log('❌ Invalid status for cancellation:', appointment.status);
+//       return res.status(400).json({ 
+//         success: false,
+//         error: `Cannot cancel appointment with status: ${appointment.status}` 
+//       });
+//     }
+
+//     // Update appointment
+//     appointment.status = "cancelled";
+//     appointment.cancellationReason = cancellationReason;
+//     appointment.cancelledAt = new Date();
+    
+//     await appointment.save();
+
+//     console.log('✅ Appointment cancelled successfully');
+
+//     res.json({
+//       success: true,
+//       message: "Appointment cancelled successfully",
+//       appointment
+//     });
+
+//   } catch (error) {
+//     console.error("❌ Server error:", error);
+//     res.status(500).json({ 
+//       success: false,
+//       error: "Server error: " + error.message 
+//     });
+//   }
+// };
+
+
+// // Add this to your appointmentController.js
+
+// // Delete appointment
+// exports.deleteAppointment = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+    
+//     const appointment = await Appointment.findByIdAndDelete(id);
+    
+//     if (!appointment) {
+//       return res.status(404).json({ 
+//         success: false,
+//         error: "Appointment not found" 
+//       });
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       message: "Appointment deleted successfully",
+//       deletedAppointment: appointment
+//     });
+//   } catch (error) {
+//     console.error("❌ Error deleting appointment:", error);
+//     res.status(500).json({ 
+//       success: false,
+//       error: "Failed to delete appointment", 
+//       details: error.message 
+//     });
+//   }
+// };
+
 
 
 
@@ -384,12 +532,45 @@ exports.createAppointment = async (req, res) => {
     }
 
     // Check for duplicate appointments for the same patient in the same slot
-    const duplicateAppointment = await Appointment.findOne({
-      doctorId: doctorId,
-      timeSlotId: timeSlotId,
-      "patientDetails.phoneNumber": patientDetails.phoneNumber,
-      status: { $in: ["pending", "confirmed"] }
+    // const duplicateAppointment = await Appointment.findOne({
+    //   doctorId: doctorId,
+    //   timeSlotId: timeSlotId,
+    //   "patientDetails.phoneNumber": patientDetails.phoneNumber,
+    //   status: { $in: ["pending", "confirmed"] }
+    // });
+
+
+
+
+     const duplicateAppointment = await Appointment.findOne({
+      $or: [
+        // Same user, same slot
+        {
+          userId: userId,
+          doctorId: doctorId,
+          timeSlotId: timeSlotId,
+          status: { $in: ["pending", "confirmed"] }
+        },
+        // Same phone number, same slot (for guest bookings)
+        {
+          doctorId: doctorId,
+          timeSlotId: timeSlotId,
+          "patientDetails.phoneNumber": patientDetails.phoneNumber,
+          status: { $in: ["pending", "confirmed"] }
+        }
+      ]
     });
+
+    if (duplicateAppointment) {
+      return res.status(409).json({
+        error: "You already have an appointment booked for this time slot.",
+        existingAppointment: {
+          id: duplicateAppointment._id,
+          appointmentDate: duplicateAppointment.appointmentDate,
+          appointmentNumber: duplicateAppointment.appointmentNumber
+        }
+      });
+    }
 
     if (duplicateAppointment) {
       return res.status(409).json({
@@ -643,52 +824,72 @@ exports.updateAppointmentStatus = async (req, res) => {
   }
 };
 
-// Cancel appointment - NEW FUNCTION
+// Updated cancel function with better logging
 exports.cancelAppointment = async (req, res) => {
   try {
     const { id } = req.params;
-    const { userId } = req.body; // User ID to verify ownership
+    const { userId, cancellationReason } = req.body;
+
+    console.log('🎯 Cancel request received:', { id, userId, cancellationReason });
 
     const appointment = await Appointment.findById(id);
     
     if (!appointment) {
+      console.log('❌ Appointment not found for ID:', id);
       return res.status(404).json({ 
         success: false,
         error: "Appointment not found" 
       });
     }
 
-    // Check if the user owns this appointment
+    console.log('📋 Found appointment:', {
+      id: appointment._id,
+      appointmentUserId: appointment.userId,
+      requestedUserId: userId,
+      status: appointment.status
+    });
+
+    // Check user ownership - FIXED
     if (appointment.userId.toString() !== userId) {
+      console.log('🚫 User not authorized:', {
+        appointmentUserId: appointment.userId.toString(),
+        requestedUserId: userId
+      });
       return res.status(403).json({ 
         success: false,
         error: "You are not authorized to cancel this appointment" 
       });
     }
 
-    // Check if appointment can be cancelled (only pending or confirmed)
+    // Check status
     if (!["pending", "confirmed"].includes(appointment.status)) {
+      console.log('❌ Invalid status for cancellation:', appointment.status);
       return res.status(400).json({ 
         success: false,
         error: `Cannot cancel appointment with status: ${appointment.status}` 
       });
     }
 
-    // Update status to cancelled
+    // Update appointment
     appointment.status = "cancelled";
+    appointment.cancellationReason = cancellationReason;
+    appointment.cancelledAt = new Date();
+    
     await appointment.save();
 
-    res.status(200).json({
+    console.log('✅ Appointment cancelled successfully');
+
+    res.json({
       success: true,
       message: "Appointment cancelled successfully",
       appointment
     });
+
   } catch (error) {
-    console.error("❌ Error cancelling appointment:", error);
+    console.error("❌ Server error:", error);
     res.status(500).json({ 
       success: false,
-      error: "Failed to cancel appointment", 
-      details: error.message 
+      error: "Server error: " + error.message 
     });
   }
 };

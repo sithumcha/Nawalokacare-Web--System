@@ -22,4 +22,21 @@ router.get("/stats/:doctorId", appointmentController.getAppointmentStats);
 // Add this to your routes/appointments.js
 router.delete("/:id", appointmentController.deleteAppointment);
 
+
+
+
+
+
+
+
+
+
+
+
 module.exports = router;
+
+
+
+
+
+
