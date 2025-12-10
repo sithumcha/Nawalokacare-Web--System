@@ -2556,9 +2556,6 @@
 
 
 
-
-
-
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
@@ -2823,7 +2820,7 @@ const BookAppointment = () => {
           day: selectedSlot.day,
           startTime: selectedSlot.startTime,
           endTime: selectedSlot.endTime,
-          consultationType: selectedSlot.consultationType
+          consultationType: selectedSlot.consultationType // NEW
         },
         timeSlotId: selectedSlot._id,
         appointmentNumber: selectedSlot.appointmentNumber
@@ -3069,6 +3066,7 @@ const BookAppointment = () => {
                 <p><span className="font-medium">Doctor:</span> Dr. {doctor?.firstName} {doctor?.lastName}</p>
                 <p><span className="font-medium">Specialization:</span> {doctor?.specialization}</p>
                 <p><span className="font-medium">Consultation Type:</span> {selectedSlot?.consultationType === 'physical' ? '🏥 Physical' : '💻 Online'}</p>
+                <p><span className="font-medium">Consultation Fee:</span> {formatPrice(doctor?.price)}</p>
               </div>
             </div>
           </div>
@@ -3306,6 +3304,9 @@ const BookAppointment = () => {
                             Your Appointment #: <span className="font-bold">{selectedSlot.appointmentNumber}</span>
                           </p>
                         )}
+                        <p className="text-green-600 text-sm mt-1">
+                          Consultation Type: <span className="font-bold capitalize">{selectedSlot.consultationType}</span> • Fee: <span className="font-bold">{formatPrice(doctor.price)}</span>
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -3387,6 +3388,9 @@ const BookAppointment = () => {
                                   <div className="text-blue-600 font-medium mt-1">
                                     Next Appointment #: {stats.nextAppointmentNumber}
                                   </div>
+                                  <div className="text-green-600 font-medium mt-1">
+                                    Consultation Fee: {formatPrice(doctor.price)}
+                                  </div>
                                 </div>
                                 {selectedSlot?._id === slot._id && (
                                   <div className="flex items-center mt-2 text-blue-600">
@@ -3425,6 +3429,9 @@ const BookAppointment = () => {
                                 Your Appointment #: {selectedSlot.appointmentNumber}
                               </div>
                             )}
+                            <div className="font-bold text-green-800 mt-1">
+                              Consultation Type: {selectedSlot.consultationType} • Fee: {formatPrice(doctor.price)}
+                            </div>
                           </div>
                         </div>
                         <button

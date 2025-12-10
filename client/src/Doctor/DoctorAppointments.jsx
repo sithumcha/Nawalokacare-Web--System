@@ -733,12 +733,7 @@
 
 
 
-
-
-
-
-
-       import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
@@ -755,6 +750,8 @@ const DoctorAppointments = () => {
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [consultationLink, setConsultationLink] = useState("");
   const [sendingLink, setSendingLink] = useState(false);
+  const [selectedPlatform, setSelectedPlatform] = useState("google");
+  const [meetingInstructions, setMeetingInstructions] = useState("");
 
   useEffect(() => {
     const doctorIdFromLocalStorage = localStorage.getItem("doctorId");
@@ -798,8 +795,8 @@ const DoctorAppointments = () => {
         doctorName: "Dr. Apsara Chanuka",
         doctorSpecialization: "Neurology",
         price: 150.00,
-        consultationType: "online", // Added consultation type
-        meetingLink: "", // Added meeting link field
+        consultationType: "online",
+        meetingLink: "https://meet.google.com/abc-def-ghi",
         patientDetails: {
           fullName: "John Doe",
           email: "john@example.com",
@@ -827,8 +824,8 @@ const DoctorAppointments = () => {
         doctorName: "Dr. Apsara Chanuka",
         doctorSpecialization: "Neurology",
         price: 150.00,
-        consultationType: "physical", // Added consultation type
-        meetingLink: "", // Added meeting link field
+        consultationType: "physical",
+        meetingLink: "",
         patientDetails: {
           fullName: "Jane Smith",
           email: "jane@example.com",
@@ -856,8 +853,8 @@ const DoctorAppointments = () => {
         doctorName: "Dr. Apsara Chanuka",
         doctorSpecialization: "Neurology",
         price: 200.00,
-        consultationType: "online", // Added consultation type
-        meetingLink: "https://meet.google.com/abc-def-ghi", // Added meeting link field
+        consultationType: "online",
+        meetingLink: "",
         patientDetails: {
           fullName: "Robert Johnson",
           email: "robert@example.com",
@@ -877,8 +874,74 @@ const DoctorAppointments = () => {
         },
         status: "confirmed",
         createdAt: new Date().toISOString()
+      },
+      {
+        _id: "4",
+        appointmentNumber: "APT-202412-0004",
+        doctorId: doctorId,
+        doctorName: "Dr. Apsara Chanuka",
+        doctorSpecialization: "Neurology",
+        price: 180.00,
+        consultationType: "online",
+        meetingLink: "https://zoom.us/j/123456789",
+        patientDetails: {
+          fullName: "Sarah Wilson",
+          email: "sarah@example.com",
+          phoneNumber: "+1234567893",
+          dateOfBirth: "1982-05-20",
+          gender: "female",
+          address: "321 Elm Street, City, State",
+          medicalConcern: "Routine checkup and consultation",
+          previousConditions: "Diabetes type 2"
+        },
+        appointmentDate: nextWeek.toISOString(),
+        timeSlot: {
+          day: "Wednesday",
+          startTime: "11:00",
+          endTime: "11:45",
+          slotId: "slot4"
+        },
+        status: "confirmed",
+        createdAt: new Date().toISOString()
       }
     ];
+  };
+
+  // Enhanced meeting link generation with platform selection
+  const generateMeetingLink = (platform = "google") => {
+    const platforms = {
+      google: {
+        prefix: "https://meet.google.com/",
+        generateId: () => {
+          const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+          let result = '';
+          for (let i = 0; i < 9; i++) {
+            if (i === 3 || i === 6) result += '-';
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+          }
+          return result;
+        }
+      },
+      zoom: {
+        prefix: "https://zoom.us/j/",
+        generateId: () => Math.floor(100000000 + Math.random() * 900000000).toString()
+      },
+      teams: {
+        prefix: "https://teams.microsoft.com/l/meetup-join/",
+        generateId: () => {
+          const randomId = Math.random().toString(36).substring(2, 15);
+          return `${randomId}@thread.tacv2`;
+        }
+      }
+    };
+
+    const selected = platforms[platform];
+    return selected.prefix + selected.generateId();
+  };
+
+  const handlePlatformChange = (platform) => {
+    setSelectedPlatform(platform);
+    setConsultationLink(generateMeetingLink(platform));
   };
 
   const filteredAppointments = appointments.filter(appointment => {
@@ -923,6 +986,54 @@ const DoctorAppointments = () => {
     }
   };
 
+  // Enhanced email notification simulation
+  const sendLinkNotification = async (appointment, link, platform, instructions) => {
+    const platformInstructions = {
+      google: "Please join using your Google account. No additional software needed.",
+      zoom: "Please download Zoom client or use the web version.",
+      teams: "Works best with Microsoft Teams app installed."
+    };
+
+    const emailContent = {
+      to: appointment.patientDetails.email,
+      subject: `Online Consultation Link - Dr. ${appointment.doctorName}`,
+      body: `
+Dear ${appointment.patientDetails.fullName},
+
+Your online consultation with ${appointment.doctorName} has been scheduled.
+
+Appointment Details:
+- Date: ${formatDate(appointment.appointmentDate)}
+- Time: ${formatTime(appointment.timeSlot.startTime)} - ${formatTime(appointment.timeSlot.endTime)}
+- Doctor: ${appointment.doctorName} (${appointment.doctorSpecialization})
+- Consultation Link: ${link}
+
+Platform: ${platform.charAt(0).toUpperCase() + platform.slice(1)}
+Instructions: ${platformInstructions[platform]}
+
+${instructions ? `Additional Instructions: ${instructions}` : ''}
+
+Please join the meeting 5-10 minutes before your scheduled time to ensure everything is working properly.
+
+If you have any technical difficulties, please contact us at least 30 minutes before your appointment.
+
+Best regards,
+${appointment.doctorName}
+${appointment.doctorSpecialization}
+      `.trim()
+    };
+
+    console.log("Sending email:", emailContent);
+    
+    // Simulate API call
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        console.log(`Email sent successfully to ${appointment.patientDetails.email}`);
+        resolve();
+      }, 1500);
+    });
+  };
+
   const handleSendConsultationLink = async (appointment) => {
     if (!consultationLink.trim()) {
       alert("Please enter a valid consultation link");
@@ -933,7 +1044,8 @@ const DoctorAppointments = () => {
     try {
       // In a real application, you would send this to your backend
       await axios.put(`http://localhost:5000/api/appointments/${appointment._id}/meeting-link`, {
-        meetingLink: consultationLink
+        meetingLink: consultationLink,
+        meetingPlatform: selectedPlatform
       });
 
       // Update local state
@@ -943,43 +1055,20 @@ const DoctorAppointments = () => {
           : apt
       ));
 
-      // Send email notification (mock implementation)
-      await sendLinkNotification(appointment, consultationLink);
+      // Send email notification
+      await sendLinkNotification(appointment, consultationLink, selectedPlatform, meetingInstructions);
 
       alert("Consultation link sent successfully!");
       setShowLinkModal(false);
       setConsultationLink("");
+      setMeetingInstructions("");
+      setSelectedPlatform("google");
     } catch (error) {
       console.error("Error sending consultation link:", error);
       alert("Failed to send consultation link. Please try again.");
     } finally {
       setSendingLink(false);
     }
-  };
-
-  const sendLinkNotification = async (appointment, link) => {
-    // Mock implementation - in real app, this would call your email service
-    console.log(`Sending consultation link to ${appointment.patientDetails.email}: ${link}`);
-    
-    // Simulate API call
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        console.log(`Email sent to ${appointment.patientDetails.email} with link: ${link}`);
-        resolve();
-      }, 1000);
-    });
-  };
-
-  const generateMeetingLink = () => {
-    // Generate a mock meeting link - in real app, integrate with Google Meet, Zoom, etc.
-    const platforms = [
-      "https://meet.google.com/",
-      "https://zoom.us/j/",
-      "https://teams.microsoft.com/l/meetup-join/"
-    ];
-    const platform = platforms[Math.floor(Math.random() * platforms.length)];
-    const randomId = Math.random().toString(36).substring(2, 15);
-    return platform + randomId;
   };
 
   const handleActionClick = (appointment, action) => {
@@ -1433,25 +1522,50 @@ const DoctorAppointments = () => {
                         )}
                       </div>
 
-                      {/* Meeting Link Display */}
-                      {appointment.consultationType === "online" && appointment.meetingLink && (
-                        <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                          <p className="text-sm font-semibold text-blue-800 mb-1">Meeting Link:</p>
-                          <div className="flex items-center justify-between">
-                            <a 
-                              href={appointment.meetingLink} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-800 text-sm truncate mr-2"
-                            >
-                              {appointment.meetingLink}
-                            </a>
-                            <button
-                              onClick={() => navigator.clipboard.writeText(appointment.meetingLink)}
-                              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                            >
-                              Copy
-                            </button>
+                      {/* Enhanced Online Consultation Status Display */}
+                      {appointment.consultationType === "online" && (
+                        <div className="mt-3">
+                          <div className={`p-3 rounded-lg border ${
+                            appointment.meetingLink 
+                              ? "bg-green-50 border-green-200" 
+                              : "bg-yellow-50 border-yellow-200"
+                          }`}>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center">
+                                <span className={`w-2 h-2 rounded-full mr-2 ${
+                                  appointment.meetingLink ? "bg-green-500" : "bg-yellow-500"
+                                }`}></span>
+                                <span className="text-sm font-medium">
+                                  {appointment.meetingLink ? "Meeting link sent" : "Link pending"}
+                                </span>
+                              </div>
+                              {appointment.meetingLink && (
+                                <div className="flex space-x-2">
+                                  <button
+                                    onClick={() => navigator.clipboard.writeText(appointment.meetingLink)}
+                                    className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                                  >
+                                    Copy
+                                  </button>
+                                  <button
+                                    onClick={() => window.open(appointment.meetingLink, '_blank')}
+                                    className="text-sm text-green-600 hover:text-green-800 font-medium"
+                                  >
+                                    Test
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                            {appointment.meetingLink && (
+                              <a 
+                                href={appointment.meetingLink} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-xs text-blue-600 hover:text-blue-800 truncate block mt-1"
+                              >
+                                {appointment.meetingLink}
+                              </a>
+                            )}
                           </div>
                         </div>
                       )}
@@ -1719,17 +1833,19 @@ const DoctorAppointments = () => {
         </div>
       )}
 
-      {/* Send Consultation Link Modal */}
+      {/* Enhanced Send Consultation Link Modal */}
       {showLinkModal && selectedAppointment && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold text-gray-900">Send Consultation Link</h3>
+                <h3 className="text-xl font-bold text-gray-900">Setup Online Consultation</h3>
                 <button
                   onClick={() => {
                     setShowLinkModal(false);
                     setConsultationLink("");
+                    setSelectedPlatform("google");
+                    setMeetingInstructions("");
                   }}
                   className="text-gray-400 hover:text-gray-600"
                 >
@@ -1740,26 +1856,78 @@ const DoctorAppointments = () => {
               </div>
 
               <div className="space-y-4">
+                {/* Platform Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select Platform
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { id: "google", name: "Google Meet", icon: "🔵" },
+                      { id: "zoom", name: "Zoom", icon: "🎥" },
+                      { id: "teams", name: "Teams", icon: "💼" }
+                    ].map((platform) => (
+                      <button
+                        key={platform.id}
+                        onClick={() => handlePlatformChange(platform.id)}
+                        className={`p-3 border rounded-lg text-center transition duration-200 ${
+                          selectedPlatform === platform.id
+                            ? "border-blue-500 bg-blue-50"
+                            : "border-gray-300 hover:border-gray-400"
+                        }`}
+                      >
+                        <div className="text-lg mb-1">{platform.icon}</div>
+                        <div className="text-xs font-medium text-gray-700">{platform.name}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Consultation Link
                   </label>
-                  <input
-                    type="url"
-                    value={consultationLink}
-                    onChange={(e) => setConsultationLink(e.target.value)}
-                    placeholder="https://meet.google.com/..."
+                  <div className="flex space-x-2">
+                    <input
+                      type="url"
+                      value={consultationLink}
+                      onChange={(e) => setConsultationLink(e.target.value)}
+                      placeholder="Meeting link will be generated automatically"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    <button
+                      onClick={() => setConsultationLink(generateMeetingLink(selectedPlatform))}
+                      className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition duration-200"
+                      title="Generate new link"
+                    >
+                      🔄
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    The link will be sent to the patient's email
+                  </p>
+                </div>
+
+                {/* Additional Meeting Details */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Meeting Details (Optional)
+                  </label>
+                  <textarea
+                    value={meetingInstructions}
+                    onChange={(e) => setMeetingInstructions(e.target.value)}
+                    placeholder="Add any special instructions for the patient..."
+                    rows="3"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Enter Google Meet, Zoom, or any other video conference link
-                  </p>
                 </div>
 
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                   <p className="text-sm text-blue-800">
-                    This link will be sent to <strong>{selectedAppointment.patientDetails.email}</strong> and 
-                    they will be notified about the online consultation.
+                    <strong>Recipient:</strong> {selectedAppointment.patientDetails.email}
+                  </p>
+                  <p className="text-sm text-blue-800 mt-1">
+                    <strong>Appointment:</strong> {formatDate(selectedAppointment.appointmentDate)} at {formatTime(selectedAppointment.timeSlot.startTime)}
                   </p>
                 </div>
 
@@ -1768,6 +1936,8 @@ const DoctorAppointments = () => {
                     onClick={() => {
                       setShowLinkModal(false);
                       setConsultationLink("");
+                      setSelectedPlatform("google");
+                      setMeetingInstructions("");
                     }}
                     className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition duration-200"
                   >
@@ -1776,9 +1946,24 @@ const DoctorAppointments = () => {
                   <button
                     onClick={() => handleSendConsultationLink(selectedAppointment)}
                     disabled={sendingLink || !consultationLink.trim()}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200 font-medium disabled:opacity-50"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200 font-medium disabled:opacity-50 flex items-center"
                   >
-                    {sendingLink ? "Sending..." : "Send Link"}
+                    {sendingLink ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                        </svg>
+                        Send Link
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
@@ -1791,12 +1976,3 @@ const DoctorAppointments = () => {
 };
 
 export default DoctorAppointments;
-
-
-
-
-
-
-
-
-

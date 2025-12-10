@@ -24,15 +24,6 @@ router.delete("/:id", appointmentController.deleteAppointment);
 
 
 
-
-
-
-
-
-
-
-
-
 module.exports = router;
 
 
