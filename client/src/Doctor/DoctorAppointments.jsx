@@ -1,4 +1,13 @@
-// import { useState, useEffect } from "react";
+
+
+
+
+
+
+
+
+
+// import { useState, useEffect, useRef, useCallback } from "react";
 // import { useNavigate } from "react-router-dom";
 // import axios from "axios";
 
@@ -12,26 +21,61 @@
 //   const [showModal, setShowModal] = useState(false);
 //   const [actionLoading, setActionLoading] = useState(false);
 //   const [doctorId, setDoctorId] = useState(null);
+//   const [doctorName, setDoctorName] = useState("");
+//   const [showLinkModal, setShowLinkModal] = useState(false);
+//   const [consultationLink, setConsultationLink] = useState("");
+//   const [sendingLink, setSendingLink] = useState(false);
+//   const [selectedPlatform, setSelectedPlatform] = useState("google");
+//   const [meetingInstructions, setMeetingInstructions] = useState("");
+  
+//   // Chat states
+//   const [showChat, setShowChat] = useState(false);
+//   const [messages, setMessages] = useState([]);
+//   const [newMessage, setNewMessage] = useState("");
+//   const [sendingMessage, setSendingMessage] = useState(false);
+//   const [unreadCounts, setUnreadCounts] = useState({});
+//   const [isPolling, setIsPolling] = useState(false);
+//   const [lastMessageId, setLastMessageId] = useState(null);
+//   const messagesEndRef = useRef(null);
+//   const pollingIntervalRef = useRef(null);
 
+//   // Initialize component
 //   useEffect(() => {
 //     const doctorIdFromLocalStorage = localStorage.getItem("doctorId");
+//     const doctorNameFromStorage = localStorage.getItem("doctorName");
+    
 //     if (!doctorIdFromLocalStorage) {
 //       navigate("/doctor/login");
 //       return;
 //     }
+    
 //     setDoctorId(doctorIdFromLocalStorage);
+//     setDoctorName(doctorNameFromStorage || "Dr. Apsara Chanuka");
 //     fetchDoctorAppointments(doctorIdFromLocalStorage);
+//     fetchUnreadCounts(doctorIdFromLocalStorage);
+    
+//     return () => {
+//       // Cleanup polling on unmount
+//       if (pollingIntervalRef.current) {
+//         clearInterval(pollingIntervalRef.current);
+//       }
+//     };
 //   }, [navigate]);
 
+//   // Fetch doctor appointments
 //   const fetchDoctorAppointments = async (doctorId) => {
 //     try {
 //       setIsLoading(true);
 //       setError("");
 //       const response = await axios.get(`http://localhost:5000/api/appointments/doctor/${doctorId}`);
-//       setAppointments(response.data);
+//       if (response.data && Array.isArray(response.data)) {
+//         setAppointments(response.data);
+//       } else {
+//         throw new Error("Invalid response format");
+//       }
 //     } catch (error) {
 //       console.error("Error fetching doctor appointments:", error);
-//       const mockAppointments = generateMockAppointments();
+//       const mockAppointments = generateMockAppointments(doctorId, doctorName);
 //       setAppointments(mockAppointments);
 //       setError("Connected to demo mode. Using sample appointment data.");
 //     } finally {
@@ -39,7 +83,203 @@
 //     }
 //   };
 
-//   const generateMockAppointments = () => {
+//   // Fetch unread counts
+//   const fetchUnreadCounts = async (userId) => {
+//     try {
+//       const response = await axios.get(`http://localhost:5000/api/chat/unread/${userId}/doctor`);
+//       if (response.data.success) {
+//         const counts = {};
+//         response.data.chats?.forEach(chat => {
+//           counts[chat.appointmentId] = chat.unreadCount;
+//         });
+//         setUnreadCounts(counts);
+//       }
+//     } catch (error) {
+//       console.error('Error fetching unread counts:', error);
+//     }
+//   };
+
+//   // Start polling for new messages
+//   const startPolling = useCallback((appointmentId) => {
+//     // Clear any existing polling
+//     if (pollingIntervalRef.current) {
+//       clearInterval(pollingIntervalRef.current);
+//     }
+
+//     setIsPolling(true);
+    
+//     pollingIntervalRef.current = setInterval(async () => {
+//       try {
+//         const params = { userId: doctorId, userType: 'doctor' };
+//         if (lastMessageId) {
+//           params.lastMessageId = lastMessageId;
+//         } else {
+//           params.lastCheck = Date.now() - 10000; // Last 10 seconds
+//         }
+        
+//         const response = await axios.get(
+//           `http://localhost:5000/api/chat/poll/${appointmentId}`,
+//           { params }
+//         );
+        
+//         if (response.data.success && response.data.hasNew) {
+//           const newMessages = response.data.messages || [];
+//           if (newMessages.length > 0) {
+//             setMessages(prev => [...prev, ...newMessages]);
+//             setLastMessageId(newMessages[newMessages.length - 1]._id);
+//             scrollToBottom();
+            
+//             // If chat is open, mark as read
+//             if (showChat) {
+//               await markMessagesAsRead(appointmentId);
+//             } else {
+//               // Update unread count
+//               setUnreadCounts(prev => ({
+//                 ...prev,
+//                 [appointmentId]: (prev[appointmentId] || 0) + newMessages.length
+//               }));
+//             }
+//           }
+//         }
+//       } catch (error) {
+//         console.error('Error polling for messages:', error);
+//       }
+//     }, 3000); // Poll every 3 seconds
+//   }, [doctorId, lastMessageId, showChat]);
+
+//   // Stop polling
+//   const stopPolling = () => {
+//     if (pollingIntervalRef.current) {
+//       clearInterval(pollingIntervalRef.current);
+//       pollingIntervalRef.current = null;
+//     }
+//     setIsPolling(false);
+//   };
+
+//   // Mark messages as read
+//   const markMessagesAsRead = async (appointmentId) => {
+//     try {
+//       await axios.post('http://localhost:5000/api/chat/mark-read', {
+//         appointmentId,
+//         userId: doctorId,
+//         userType: 'doctor'
+//       });
+      
+//       // Update local unread count
+//       setUnreadCounts(prev => ({
+//         ...prev,
+//         [appointmentId]: 0
+//       }));
+//     } catch (error) {
+//       console.error('Error marking messages as read:', error);
+//     }
+//   };
+
+//   // Open chat
+//   const openChat = async (appointment) => {
+//     try {
+//       // Fetch existing messages
+//       const response = await axios.get(
+//         `http://localhost:5000/api/chat/messages/${appointment._id}`,
+//         { params: { userId: doctorId } }
+//       );
+
+//       if (response.data.success) {
+//         const fetchedMessages = response.data.messages || [];
+//         setMessages(fetchedMessages);
+        
+//         // Set last message ID for polling
+//         if (fetchedMessages.length > 0) {
+//           setLastMessageId(fetchedMessages[fetchedMessages.length - 1]._id);
+//         }
+        
+//         // Mark as read
+//         await markMessagesAsRead(appointment._id);
+//       }
+//     } catch (error) {
+//       console.error('Error opening chat:', error);
+//       // Show sample messages if API fails
+//       setMessages(generateSampleMessages(appointment));
+//     }
+    
+//     setSelectedAppointment(appointment);
+//     setShowChat(true);
+    
+//     // Start polling for new messages
+//     startPolling(appointment._id);
+    
+//     setTimeout(() => scrollToBottom(), 100);
+//   };
+
+//   // Close chat
+//   const closeChat = () => {
+//     stopPolling();
+//     setShowChat(false);
+//     setSelectedAppointment(null);
+//     setMessages([]);
+//     setNewMessage("");
+//     setLastMessageId(null);
+//   };
+
+//   // Send message
+//   const sendMessage = async () => {
+//     if (!newMessage.trim() || !selectedAppointment || !doctorId) return;
+
+//     const messageData = {
+//       appointmentId: selectedAppointment._id,
+//       senderId: doctorId,
+//       senderType: "doctor",
+//       receiverId: selectedAppointment.patientDetails?._id || "patient_id",
+//       receiverType: "patient",
+//       content: newMessage.trim()
+//     };
+
+//     setSendingMessage(true);
+//     try {
+//       // Optimistically add message to UI
+//       const tempMessage = {
+//         ...messageData,
+//         _id: `temp_${Date.now()}`,
+//         timestamp: new Date().toISOString(),
+//         read: false
+//       };
+      
+//       setMessages(prev => [...prev, tempMessage]);
+//       setNewMessage("");
+//       scrollToBottom();
+
+//       // Send message via HTTP
+//       const response = await axios.post(
+//         'http://localhost:5000/api/chat/send',
+//         messageData
+//       );
+
+//       if (response.data.success) {
+//         // Replace temp message with real message
+//         setMessages(prev => 
+//           prev.map(msg => 
+//             msg._id === tempMessage._id ? response.data.data : msg
+//           )
+//         );
+        
+//         // Update last message ID
+//         setLastMessageId(response.data.data._id);
+//       } else {
+//         throw new Error('Failed to send message');
+//       }
+
+//     } catch (error) {
+//       console.error('Error sending message:', error);
+//       alert('Failed to send message. Please try again.');
+//       // Remove optimistic message on error
+//       setMessages(prev => prev.filter(msg => !msg._id?.startsWith('temp_')));
+//     } finally {
+//       setSendingMessage(false);
+//     }
+//   };
+
+//   // Generate mock appointments for demo
+//   const generateMockAppointments = (doctorId, doctorName) => {
 //     const today = new Date();
 //     const tomorrow = new Date(today);
 //     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -49,13 +289,16 @@
 
 //     return [
 //       {
-//         _id: "1",
+//         _id: "appointment_1",
 //         appointmentNumber: "APT-202412-0001",
 //         doctorId: doctorId,
-//         doctorName: "Dr. Apsara Chanuka",
+//         doctorName: doctorName || "Dr. Apsara Chanuka",
 //         doctorSpecialization: "Neurology",
 //         price: 150.00,
+//         consultationType: "online",
+//         meetingLink: "https://meet.google.com/abc-def-ghi",
 //         patientDetails: {
+//           _id: "patient_1",
 //           fullName: "John Doe",
 //           email: "john@example.com",
 //           phoneNumber: "+1234567890",
@@ -76,13 +319,16 @@
 //         createdAt: new Date().toISOString()
 //       },
 //       {
-//         _id: "2",
+//         _id: "appointment_2",
 //         appointmentNumber: "APT-202412-0002",
 //         doctorId: doctorId,
-//         doctorName: "Dr. Apsara Chanuka",
+//         doctorName: doctorName || "Dr. Apsara Chanuka",
 //         doctorSpecialization: "Neurology",
 //         price: 150.00,
+//         consultationType: "physical",
+//         meetingLink: "",
 //         patientDetails: {
+//           _id: "patient_2",
 //           fullName: "Jane Smith",
 //           email: "jane@example.com",
 //           phoneNumber: "+1234567891",
@@ -103,13 +349,16 @@
 //         createdAt: new Date().toISOString()
 //       },
 //       {
-//         _id: "3",
+//         _id: "appointment_3",
 //         appointmentNumber: "APT-202412-0003",
 //         doctorId: doctorId,
-//         doctorName: "Dr. Apsara Chanuka",
+//         doctorName: doctorName || "Dr. Apsara Chanuka",
 //         doctorSpecialization: "Neurology",
 //         price: 200.00,
+//         consultationType: "online",
+//         meetingLink: "",
 //         patientDetails: {
+//           _id: "patient_3",
 //           fullName: "Robert Johnson",
 //           email: "robert@example.com",
 //           phoneNumber: "+1234567892",
@@ -128,11 +377,123 @@
 //         },
 //         status: "confirmed",
 //         createdAt: new Date().toISOString()
+//       },
+//       {
+//         _id: "appointment_4",
+//         appointmentNumber: "APT-202412-0004",
+//         doctorId: doctorId,
+//         doctorName: doctorName || "Dr. Apsara Chanuka",
+//         doctorSpecialization: "Neurology",
+//         price: 180.00,
+//         consultationType: "online",
+//         meetingLink: "https://zoom.us/j/123456789",
+//         patientDetails: {
+//           _id: "patient_4",
+//           fullName: "Sarah Wilson",
+//           email: "sarah@example.com",
+//           phoneNumber: "+1234567893",
+//           dateOfBirth: "1982-05-20",
+//           gender: "female",
+//           address: "321 Elm Street, City, State",
+//           medicalConcern: "Routine checkup and consultation",
+//           previousConditions: "Diabetes type 2"
+//         },
+//         appointmentDate: nextWeek.toISOString(),
+//         timeSlot: {
+//           day: "Wednesday",
+//           startTime: "11:00",
+//           endTime: "11:45",
+//           slotId: "slot4"
+//         },
+//         status: "confirmed",
+//         createdAt: new Date().toISOString()
 //       }
 //     ];
 //   };
 
+//   // Generate sample messages for demo
+//   const generateSampleMessages = (appointment) => {
+//     return [
+//       {
+//         _id: "msg_1",
+//         appointmentId: appointment._id,
+//         senderId: appointment.patientDetails?._id || "patient_id",
+//         senderType: "patient",
+//         receiverId: doctorId,
+//         receiverType: "doctor",
+//         content: "Hello Doctor, I have a question about my appointment",
+//         timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+//         read: true
+//       },
+//       {
+//         _id: "msg_2",
+//         appointmentId: appointment._id,
+//         senderId: doctorId,
+//         senderType: "doctor",
+//         receiverId: appointment.patientDetails?._id || "patient_id",
+//         receiverType: "patient",
+//         content: "How can I help you today?",
+//         timestamp: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+//         read: true
+//       }
+//     ];
+//   };
+
+//   // Generate meeting link
+//   const generateMeetingLink = (platform = "google") => {
+//     const platforms = {
+//       google: {
+//         prefix: "https://meet.google.com/",
+//         generateId: () => {
+//           const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+//           let result = '';
+//           for (let i = 0; i < 9; i++) {
+//             if (i === 3 || i === 6) result += '-';
+//             result += chars.charAt(Math.floor(Math.random() * chars.length));
+//           }
+//           return result;
+//         }
+//       },
+//       zoom: {
+//         prefix: "https://zoom.us/j/",
+//         generateId: () => Math.floor(100000000 + Math.random() * 900000000).toString()
+//       },
+//       teams: {
+//         prefix: "https://teams.microsoft.com/l/meetup-join/",
+//         generateId: () => {
+//           const randomId = Math.random().toString(36).substring(2, 15);
+//           return `${randomId}@thread.tacv2`;
+//         }
+//       }
+//     };
+
+//     const selected = platforms[platform];
+//     return selected.prefix + selected.generateId();
+//   };
+
+//   const handlePlatformChange = (platform) => {
+//     setSelectedPlatform(platform);
+//     setConsultationLink(generateMeetingLink(platform));
+//   };
+
+//   // Helper functions
+//   const scrollToBottom = () => {
+//     setTimeout(() => {
+//       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+//     }, 100);
+//   };
+
+//   const handleKeyPress = (e) => {
+//     if (e.key === 'Enter' && !e.shiftKey) {
+//       e.preventDefault();
+//       sendMessage();
+//     }
+//   };
+
+//   // Filter appointments
 //   const filteredAppointments = appointments.filter(appointment => {
+//     if (!appointment || !appointment.appointmentDate) return false;
+    
 //     const now = new Date();
 //     const appointmentDate = new Date(appointment.appointmentDate);
 //     const today = new Date();
@@ -147,6 +508,10 @@
 //         return appointmentDate >= now && (appointment.status === "pending" || appointment.status === "confirmed");
 //       case "pending":
 //         return appointment.status === "pending";
+//       case "online":
+//         return appointment.consultationType === "online";
+//       case "physical":
+//         return appointment.consultationType === "physical";
 //       case "all":
 //         return true;
 //       default:
@@ -154,6 +519,7 @@
 //     }
 //   });
 
+//   // Handle appointment status update
 //   const handleStatusUpdate = async (appointmentId, newStatus) => {
 //     setActionLoading(true);
 //     try {
@@ -167,6 +533,90 @@
 //       alert("Failed to update appointment status. Please try again.");
 //     } finally {
 //       setActionLoading(false);
+//     }
+//   };
+
+//   // Send consultation link
+//   const sendLinkNotification = async (appointment, link, platform, instructions) => {
+//     const platformInstructions = {
+//       google: "Please join using your Google account. No additional software needed.",
+//       zoom: "Please download Zoom client or use the web version.",
+//       teams: "Works best with Microsoft Teams app installed."
+//     };
+
+//     const emailContent = {
+//       to: appointment.patientDetails.email,
+//       subject: `Online Consultation Link - Dr. ${appointment.doctorName}`,
+//       body: `
+// Dear ${appointment.patientDetails.fullName},
+
+// Your online consultation with ${appointment.doctorName} has been scheduled.
+
+// Appointment Details:
+// - Date: ${formatDate(appointment.appointmentDate)}
+// - Time: ${formatTime(appointment.timeSlot.startTime)} - ${formatTime(appointment.timeSlot.endTime)}
+// - Doctor: ${appointment.doctorName} (${appointment.doctorSpecialization})
+// - Consultation Link: ${link}
+
+// Platform: ${platform.charAt(0).toUpperCase() + platform.slice(1)}
+// Instructions: ${platformInstructions[platform]}
+
+// ${instructions ? `Additional Instructions: ${instructions}` : ''}
+
+// Please join the meeting 5-10 minutes before your scheduled time to ensure everything is working properly.
+
+// If you have any technical difficulties, please contact us at least 30 minutes before your appointment.
+
+// Best regards,
+// ${appointment.doctorName}
+// ${appointment.doctorSpecialization}
+//       `.trim()
+//     };
+
+//     console.log("Sending email:", emailContent);
+    
+//     return new Promise((resolve) => {
+//       setTimeout(() => {
+//         console.log(`Email sent successfully to ${appointment.patientDetails.email}`);
+//         resolve();
+//       }, 1500);
+//     });
+//   };
+
+//   const handleSendConsultationLink = async (appointment) => {
+//     if (!consultationLink.trim()) {
+//       alert("Please enter a valid consultation link");
+//       return;
+//     }
+
+//     setSendingLink(true);
+//     try {
+//       // Update appointment with meeting link
+//       await axios.put(`http://localhost:5000/api/appointments/${appointment._id}/meeting-link`, {
+//         meetingLink: consultationLink,
+//         meetingPlatform: selectedPlatform
+//       });
+
+//       // Update local state
+//       setAppointments(prev => prev.map(apt => 
+//         apt._id === appointment._id 
+//           ? { ...apt, meetingLink: consultationLink }
+//           : apt
+//       ));
+
+//       // Send email notification
+//       await sendLinkNotification(appointment, consultationLink, selectedPlatform, meetingInstructions);
+
+//       alert("Consultation link sent successfully!");
+//       setShowLinkModal(false);
+//       setConsultationLink("");
+//       setMeetingInstructions("");
+//       setSelectedPlatform("google");
+//     } catch (error) {
+//       console.error("Error sending consultation link:", error);
+//       alert("Failed to send consultation link. Please try again.");
+//     } finally {
+//       setSendingLink(false);
 //     }
 //   };
 
@@ -186,11 +636,26 @@
 //       case "view":
 //         setShowModal(true);
 //         break;
+//       case "send-link":
+//         setConsultationLink(appointment.meetingLink || generateMeetingLink());
+//         setShowLinkModal(true);
+//         break;
+//       case "join-call":
+//         if (appointment.meetingLink) {
+//           window.open(appointment.meetingLink, '_blank', 'noopener,noreferrer');
+//         } else {
+//           alert("No meeting link available. Please generate and send a link first.");
+//         }
+//         break;
+//       case "chat":
+//         openChat(appointment);
+//         break;
 //       default:
 //         break;
 //     }
 //   };
 
+//   // UI Helper functions
 //   const getStatusColor = (status) => {
 //     switch (status) {
 //       case "confirmed":
@@ -201,6 +666,17 @@
 //         return "bg-red-100 text-red-800 border-red-200";
 //       case "completed":
 //         return "bg-blue-100 text-blue-800 border-blue-200";
+//       default:
+//         return "bg-gray-100 text-gray-800 border-gray-200";
+//     }
+//   };
+
+//   const getConsultationTypeColor = (type) => {
+//     switch (type) {
+//       case "online":
+//         return "bg-blue-100 text-blue-800 border-blue-200";
+//       case "physical":
+//         return "bg-orange-100 text-orange-800 border-orange-200";
 //       default:
 //         return "bg-gray-100 text-gray-800 border-gray-200";
 //     }
@@ -221,21 +697,42 @@
 //     }
 //   };
 
+//   const getConsultationTypeIcon = (type) => {
+//     switch (type) {
+//       case "online":
+//         return "💻";
+//       case "physical":
+//         return "🏥";
+//       default:
+//         return "📅";
+//     }
+//   };
+
 //   const formatTime = (timeString) => {
-//     return new Date(`2000-01-01T${timeString}`).toLocaleTimeString('en-US', {
-//       hour: '2-digit',
-//       minute: '2-digit',
-//       hour12: true
-//     });
+//     if (!timeString) return "N/A";
+//     try {
+//       return new Date(`2000-01-01T${timeString}`).toLocaleTimeString('en-US', {
+//         hour: '2-digit',
+//         minute: '2-digit',
+//         hour12: true
+//       });
+//     } catch (error) {
+//       return timeString;
+//     }
 //   };
 
 //   const formatDate = (dateString) => {
-//     return new Date(dateString).toLocaleDateString('en-US', {
-//       weekday: 'long',
-//       year: 'numeric',
-//       month: 'long',
-//       day: 'numeric'
-//     });
+//     if (!dateString) return "N/A";
+//     try {
+//       return new Date(dateString).toLocaleDateString('en-US', {
+//         weekday: 'long',
+//         year: 'numeric',
+//         month: 'long',
+//         day: 'numeric'
+//       });
+//     } catch (error) {
+//       return dateString;
+//     }
 //   };
 
 //   const formatPrice = (price) => {
@@ -247,16 +744,21 @@
 //   };
 
 //   const calculateAge = (dateOfBirth) => {
-//     const today = new Date();
-//     const birthDate = new Date(dateOfBirth);
-//     let age = today.getFullYear() - birthDate.getFullYear();
-//     const monthDiff = today.getMonth() - birthDate.getMonth();
-    
-//     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-//       age--;
+//     if (!dateOfBirth) return "N/A";
+//     try {
+//       const today = new Date();
+//       const birthDate = new Date(dateOfBirth);
+//       let age = today.getFullYear() - birthDate.getFullYear();
+//       const monthDiff = today.getMonth() - birthDate.getMonth();
+      
+//       if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+//         age--;
+//       }
+      
+//       return age;
+//     } catch (error) {
+//       return "N/A";
 //     }
-    
-//     return age;
 //   };
 
 //   const getAppointmentStats = () => {
@@ -264,15 +766,20 @@
 //     today.setHours(0, 0, 0, 0);
     
 //     const todayAppointments = appointments.filter(apt => {
+//       if (!apt || !apt.appointmentDate) return false;
 //       const aptDate = new Date(apt.appointmentDate);
 //       aptDate.setHours(0, 0, 0, 0);
 //       return aptDate.getTime() === today.getTime();
 //     });
 
 //     const upcomingAppointments = appointments.filter(apt => 
+//       apt && apt.appointmentDate && 
 //       new Date(apt.appointmentDate) >= new Date() && 
 //       (apt.status === "pending" || apt.status === "confirmed")
 //     );
+
+//     const onlineAppointments = appointments.filter(apt => apt.consultationType === "online");
+//     const physicalAppointments = appointments.filter(apt => apt.consultationType === "physical");
 
 //     const totalRevenue = appointments
 //       .filter(apt => apt.status === "completed" || apt.status === "confirmed")
@@ -283,6 +790,8 @@
 //       today: todayAppointments.length,
 //       upcoming: upcomingAppointments.length,
 //       pending: appointments.filter(apt => apt.status === "pending").length,
+//       online: onlineAppointments.length,
+//       physical: physicalAppointments.length,
 //       totalRevenue
 //     };
 //   };
@@ -310,6 +819,9 @@
 //             <div>
 //               <h1 className="text-3xl font-bold text-gray-900">Appointment Management</h1>
 //               <p className="text-gray-600 mt-1">Manage your patient appointments and schedule</p>
+//               {doctorName && (
+//                 <p className="text-gray-500 text-sm mt-1">Welcome, {doctorName}</p>
+//               )}
 //             </div>
 //             <div className="flex items-center space-x-4">
 //               <button
@@ -342,131 +854,72 @@
 //           </div>
 //         )}
 
-//         {/* Quick Stats */}
-//         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-//           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+//         {/* Chat Status */}
+//         <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+//           <div className="flex items-center justify-between">
 //             <div className="flex items-center">
-//               <div className="bg-blue-100 p-3 rounded-lg">
-//                 <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-//                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-//                 </svg>
-//               </div>
-//               <div className="ml-4">
-//                 <p className="text-sm font-medium text-gray-600">Total Appointments</p>
-//                 <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-//               </div>
+//               <div className={`w-3 h-3 rounded-full mr-2 ${isPolling ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+//               <span className="text-sm font-medium">
+//                 Chat: {isPolling ? 'Active (Polling every 3s)' : 'Inactive'}
+//               </span>
 //             </div>
-//           </div>
-
-//           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-//             <div className="flex items-center">
-//               <div className="bg-green-100 p-3 rounded-lg">
-//                 <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-//                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-//                 </svg>
-//               </div>
-//               <div className="ml-4">
-//                 <p className="text-sm font-medium text-gray-600">Today's Appointments</p>
-//                 <p className="text-2xl font-bold text-gray-900">{stats.today}</p>
-//               </div>
-//             </div>
-//           </div>
-
-//           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-//             <div className="flex items-center">
-//               <div className="bg-yellow-100 p-3 rounded-lg">
-//                 <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-//                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-//                 </svg>
-//               </div>
-//               <div className="ml-4">
-//                 <p className="text-sm font-medium text-gray-600">Pending Approval</p>
-//                 <p className="text-2xl font-bold text-gray-900">{stats.pending}</p>
-//               </div>
-//             </div>
-//           </div>
-
-//           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-//             <div className="flex items-center">
-//               <div className="bg-purple-100 p-3 rounded-lg">
-//                 <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-//                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-//                 </svg>
-//               </div>
-//               <div className="ml-4">
-//                 <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-//                 <p className="text-2xl font-bold text-green-700">{formatPrice(stats.totalRevenue)}</p>
-//               </div>
-//             </div>
+//             {isPolling && (
+//               <span className="text-xs text-gray-500">
+//                 Last update: {new Date().toLocaleTimeString()}
+//               </span>
+//             )}
 //           </div>
 //         </div>
 
-//         {/* Revenue Summary */}
-//         <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6 mb-8">
-//           <h3 className="text-xl font-semibold text-gray-900 mb-4">Revenue Summary</h3>
-//           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-//             <div className="text-center">
-//               <p className="text-sm text-gray-600">Confirmed Revenue</p>
-//               <p className="text-2xl font-bold text-green-700">{formatPrice(stats.totalRevenue)}</p>
+//         {/* Quick Stats */}
+//         <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-6 mb-8">
+//           {[
+//             { label: "Total", value: stats.total, icon: "📅", color: "blue" },
+//             { label: "Today", value: stats.today, icon: "✓", color: "green" },
+//             { label: "Pending", value: stats.pending, icon: "⏳", color: "yellow" },
+//             { label: "Online", value: stats.online, icon: "💻", color: "blue" },
+//             { label: "Physical", value: stats.physical, icon: "🏥", color: "orange" },
+//             { label: "Revenue", value: formatPrice(stats.totalRevenue), icon: "💰", color: "purple" }
+//           ].map((stat, index) => (
+//             <div key={index} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+//               <div className="flex items-center">
+//                 <div className={`bg-${stat.color}-100 p-3 rounded-lg`}>
+//                   <span className={`text-${stat.color}-600 text-lg`}>{stat.icon}</span>
+//                 </div>
+//                 <div className="ml-4">
+//                   <p className="text-sm font-medium text-gray-600">{stat.label}</p>
+//                   <p className={`text-2xl font-bold ${stat.label === "Revenue" ? "text-green-700" : "text-gray-900"}`}>
+//                     {stat.value}
+//                   </p>
+//                 </div>
+//               </div>
 //             </div>
-//             <div className="text-center">
-//               <p className="text-sm text-gray-600">Pending Revenue</p>
-//               <p className="text-2xl font-bold text-yellow-600">
-//                 {formatPrice(appointments.filter(apt => apt.status === "pending").reduce((sum, apt) => sum + (apt.price || 0), 0))}
-//               </p>
-//             </div>
-//             <div className="text-center">
-//               <p className="text-sm text-gray-600">Average per Appointment</p>
-//               <p className="text-2xl font-bold text-blue-600">
-//                 {stats.total > 0 ? formatPrice(stats.totalRevenue / stats.total) : formatPrice(0)}
-//               </p>
-//             </div>
-//           </div>
+//           ))}
 //         </div>
 
 //         {/* Filters */}
 //         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
 //           <div className="flex flex-wrap gap-2">
-//             <button
-//               onClick={() => setFilter("today")}
-//               className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
-//                 filter === "today" 
-//                   ? "bg-blue-600 text-white" 
-//                   : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-//               }`}
-//             >
-//               Today
-//             </button>
-//             <button
-//               onClick={() => setFilter("upcoming")}
-//               className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
-//                 filter === "upcoming" 
-//                   ? "bg-blue-600 text-white" 
-//                   : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-//               }`}
-//             >
-//               Upcoming
-//             </button>
-//             <button
-//               onClick={() => setFilter("pending")}
-//               className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
-//                 filter === "pending" 
-//                   ? "bg-blue-600 text-white" 
-//                   : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-//               }`}
-//             >
-//               Pending Approval
-//             </button>
-//             <button
-//               onClick={() => setFilter("all")}
-//               className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
-//                 filter === "all" 
-//                   ? "bg-blue-600 text-white" 
-//                   : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-//               }`}
-//             >
-//               All Appointments
-//             </button>
+//             {[
+//               { key: "today", label: "Today" },
+//               { key: "upcoming", label: "Upcoming" },
+//               { key: "pending", label: "Pending" },
+//               { key: "online", label: "Online" },
+//               { key: "physical", label: "Physical" },
+//               { key: "all", label: "All" }
+//             ].map((filterOption) => (
+//               <button
+//                 key={filterOption.key}
+//                 onClick={() => setFilter(filterOption.key)}
+//                 className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
+//                   filter === filterOption.key 
+//                     ? "bg-blue-600 text-white" 
+//                     : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+//                 }`}
+//               >
+//                 {filterOption.label}
+//               </button>
+//             ))}
 //           </div>
 //         </div>
 
@@ -477,6 +930,8 @@
 //               {filter === "today" && "Today's Appointments"}
 //               {filter === "upcoming" && "Upcoming Appointments"}
 //               {filter === "pending" && "Pending Approval"}
+//               {filter === "online" && "Online Consultations"}
+//               {filter === "physical" && "Physical Appointments"}
 //               {filter === "all" && "All Appointments"}
 //               <span className="text-gray-500 ml-2">({filteredAppointments.length})</span>
 //             </h2>
@@ -503,17 +958,23 @@
 //                       <div className="flex items-start justify-between mb-3">
 //                         <div>
 //                           <h3 className="text-lg font-semibold text-gray-900">
-//                             {appointment.patientDetails.fullName}
+//                             {appointment.patientDetails?.fullName || "Unknown Patient"}
 //                           </h3>
 //                           <p className="text-gray-600">
-//                             {formatDate(appointment.appointmentDate)} • {formatTime(appointment.timeSlot.startTime)} - {formatTime(appointment.timeSlot.endTime)}
+//                             {formatDate(appointment.appointmentDate)} • {formatTime(appointment.timeSlot?.startTime)} - {formatTime(appointment.timeSlot?.endTime)}
 //                           </p>
 //                         </div>
 //                         <div className="flex flex-col items-end gap-2">
-//                           <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(appointment.status)}`}>
-//                             <span className="mr-1">{getStatusIcon(appointment.status)}</span>
-//                             {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
-//                           </span>
+//                           <div className="flex gap-2">
+//                             <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(appointment.status)}`}>
+//                               <span className="mr-1">{getStatusIcon(appointment.status)}</span>
+//                               {appointment.status?.charAt(0).toUpperCase() + appointment.status?.slice(1) || "Unknown"}
+//                             </span>
+//                             <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getConsultationTypeColor(appointment.consultationType)}`}>
+//                               <span className="mr-1">{getConsultationTypeIcon(appointment.consultationType)}</span>
+//                               {appointment.consultationType?.charAt(0).toUpperCase() + appointment.consultationType?.slice(1) || "Not specified"}
+//                             </span>
+//                           </div>
 //                           <span className="inline-flex items-center px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium border border-green-200">
 //                             <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 //                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
@@ -526,42 +987,129 @@
 //                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
 //                         <div>
 //                           <p className="text-gray-600 mb-1">
-//                             <strong>Contact:</strong> {appointment.patientDetails.phoneNumber}
+//                             <strong>Contact:</strong> {appointment.patientDetails?.phoneNumber || "N/A"}
 //                           </p>
 //                           <p className="text-gray-600">
-//                             <strong>Email:</strong> {appointment.patientDetails.email}
+//                             <strong>Email:</strong> {appointment.patientDetails?.email || "N/A"}
 //                           </p>
 //                         </div>
 //                         <div>
 //                           <p className="text-gray-600 mb-1">
-//                             <strong>Appointment ID:</strong> {appointment.appointmentNumber}
+//                             <strong>Appointment ID:</strong> {appointment.appointmentNumber || "N/A"}
 //                           </p>
 //                           <p className="text-gray-600">
 //                             <strong>Age/Gender:</strong> 
-//                             {` ${calculateAge(appointment.patientDetails.dateOfBirth)} years / ${appointment.patientDetails.gender || "Not specified"}`}
+//                             {` ${calculateAge(appointment.patientDetails?.dateOfBirth)} years / ${appointment.patientDetails?.gender || "Not specified"}`}
 //                           </p>
 //                         </div>
 //                       </div>
 
 //                       <div className="mt-3">
 //                         <p className="text-sm text-gray-600">
-//                           <strong>Medical Concern:</strong> {appointment.patientDetails.medicalConcern}
+//                           <strong>Medical Concern:</strong> {appointment.patientDetails?.medicalConcern || "Not specified"}
 //                         </p>
-//                         {appointment.patientDetails.previousConditions && (
+//                         {appointment.patientDetails?.previousConditions && (
 //                           <p className="text-sm text-gray-600 mt-1">
 //                             <strong>Previous Conditions:</strong> {appointment.patientDetails.previousConditions}
 //                           </p>
 //                         )}
 //                       </div>
+
+//                       {/* Online Consultation Status Display */}
+//                       {appointment.consultationType === "online" && (
+//                         <div className="mt-3">
+//                           <div className={`p-3 rounded-lg border ${
+//                             appointment.meetingLink 
+//                               ? "bg-green-50 border-green-200" 
+//                               : "bg-yellow-50 border-yellow-200"
+//                           }`}>
+//                             <div className="flex items-center justify-between">
+//                               <div className="flex items-center">
+//                                 <span className={`w-2 h-2 rounded-full mr-2 ${
+//                                   appointment.meetingLink ? "bg-green-500" : "bg-yellow-500"
+//                                 }`}></span>
+//                                 <span className="text-sm font-medium">
+//                                   {appointment.meetingLink ? "Meeting link sent" : "Link pending"}
+//                                 </span>
+//                               </div>
+//                               {appointment.meetingLink && (
+//                                 <div className="flex space-x-2">
+//                                   <button
+//                                     onClick={() => navigator.clipboard.writeText(appointment.meetingLink)}
+//                                     className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+//                                   >
+//                                     Copy
+//                                   </button>
+//                                   <button
+//                                     onClick={() => window.open(appointment.meetingLink, '_blank', 'noopener,noreferrer')}
+//                                     className="text-sm text-green-600 hover:text-green-800 font-medium"
+//                                   >
+//                                     Test
+//                                   </button>
+//                                 </div>
+//                               )}
+//                             </div>
+//                             {appointment.meetingLink && (
+//                               <a 
+//                                 href={appointment.meetingLink} 
+//                                 target="_blank" 
+//                                 rel="noopener noreferrer"
+//                                 className="text-xs text-blue-600 hover:text-blue-800 truncate block mt-1"
+//                               >
+//                                 {appointment.meetingLink}
+//                               </a>
+//                             )}
+//                           </div>
+//                         </div>
+//                       )}
 //                     </div>
 
 //                     <div className="mt-4 lg:mt-0 lg:ml-6 flex flex-col sm:flex-row gap-2">
+//                       {/* Chat Button with Unread Badge */}
+//                       <button
+//                         onClick={() => handleActionClick(appointment, "chat")}
+//                         className="relative px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition duration-200 font-medium flex items-center"
+//                       >
+//                         <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+//                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+//                         </svg>
+//                         Chat
+//                         {unreadCounts[appointment._id] > 0 && (
+//                           <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+//                             {unreadCounts[appointment._id] > 9 ? '9+' : unreadCounts[appointment._id]}
+//                           </span>
+//                         )}
+//                       </button>
+                      
 //                       <button
 //                         onClick={() => handleActionClick(appointment, "view")}
 //                         className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200 font-medium"
 //                       >
 //                         View Details
 //                       </button>
+                      
+//                       {/* Online Consultation Specific Actions */}
+//                       {appointment.consultationType === "online" && appointment.status === "confirmed" && (
+//                         <>
+//                           {appointment.meetingLink ? (
+//                             <button
+//                               onClick={() => handleActionClick(appointment, "join-call")}
+//                               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition duration-200 font-medium flex items-center"
+//                             >
+//                               <span className="mr-2">🎥</span>
+//                               Join Call
+//                             </button>
+//                           ) : (
+//                             <button
+//                               onClick={() => handleActionClick(appointment, "send-link")}
+//                               className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition duration-200 font-medium flex items-center"
+//                             >
+//                               <span className="mr-2">🔗</span>
+//                               Send Link
+//                             </button>
+//                           )}
+//                         </>
+//                       )}
                       
 //                       {appointment.status === "pending" && (
 //                         <button
@@ -587,7 +1135,7 @@
 //                         <button
 //                           onClick={() => handleActionClick(appointment, "complete")}
 //                           disabled={actionLoading}
-//                           className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition duration-200 font-medium disabled:opacity-50"
+//                           className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition duration-200 font-medium disabled:opacity-50"
 //                         >
 //                           {actionLoading ? "Completing..." : "Complete"}
 //                         </button>
@@ -600,6 +1148,127 @@
 //           )}
 //         </div>
 //       </div>
+
+//       {/* Chat Modal */}
+//       {showChat && selectedAppointment && (
+//         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50">
+//           <div className="bg-white h-full w-full md:w-96 lg:w-1/3 shadow-xl flex flex-col">
+//             {/* Chat Header */}
+//             <div className="bg-blue-600 text-white p-4 flex items-center justify-between">
+//               <div className="flex items-center">
+//                 <button
+//                   onClick={closeChat}
+//                   className="mr-3 text-white hover:text-blue-200"
+//                 >
+//                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+//                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+//                   </svg>
+//                 </button>
+//                 <div>
+//                   <h3 className="font-semibold">{selectedAppointment.patientDetails?.fullName || "Patient"}</h3>
+//                   <p className="text-sm text-blue-200">
+//                     {selectedAppointment.appointmentNumber} • {formatDate(selectedAppointment.appointmentDate)}
+//                   </p>
+//                 </div>
+//               </div>
+//               <div className="flex items-center space-x-2">
+//                 <div className={`w-2 h-2 rounded-full ${isPolling ? 'bg-green-400' : 'bg-gray-400'}`}></div>
+//                 {selectedAppointment.patientDetails?.phoneNumber && (
+//                   <button
+//                     onClick={() => window.open(`tel:${selectedAppointment.patientDetails.phoneNumber}`)}
+//                     className="p-2 hover:bg-blue-700 rounded-full"
+//                     title="Call Patient"
+//                   >
+//                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+//                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+//                     </svg>
+//                   </button>
+//                 )}
+//               </div>
+//             </div>
+
+//             {/* Messages Container */}
+//             <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+//               {messages.length === 0 ? (
+//                 <div className="text-center py-8">
+//                   <svg className="w-12 h-12 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+//                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+//                   </svg>
+//                   <p className="text-gray-500">No messages yet. Start the conversation!</p>
+//                 </div>
+//               ) : (
+//                 <div className="space-y-4">
+//                   {messages.map((message) => (
+//                     <div
+//                       key={message._id}
+//                       className={`flex ${message.senderType === "doctor" ? "justify-end" : "justify-start"}`}
+//                     >
+//                       <div
+//                         className={`max-w-xs lg:max-w-md rounded-2xl px-4 py-2 ${
+//                           message.senderType === "doctor"
+//                             ? "bg-blue-600 text-white rounded-br-none"
+//                             : "bg-gray-200 text-gray-800 rounded-bl-none"
+//                         }`}
+//                       >
+//                         <p className="text-sm break-words">{message.content}</p>
+//                         <p
+//                           className={`text-xs mt-1 ${
+//                             message.senderType === "doctor"
+//                               ? "text-blue-200"
+//                               : "text-gray-500"
+//                           }`}
+//                         >
+//                           {new Date(message.timestamp).toLocaleTimeString([], {
+//                             hour: '2-digit',
+//                             minute: '2-digit'
+//                           })}
+//                           {message._id?.startsWith('temp_') && ' (Sending...)'}
+//                         </p>
+//                       </div>
+//                     </div>
+//                   ))}
+//                   <div ref={messagesEndRef} />
+//                 </div>
+//               )}
+//             </div>
+
+//             {/* Message Input */}
+//             <div className="border-t border-gray-200 p-4">
+//               <div className="flex space-x-2">
+//                 <input
+//                   type="text"
+//                   value={newMessage}
+//                   onChange={(e) => setNewMessage(e.target.value)}
+//                   onKeyPress={handleKeyPress}
+//                   placeholder="Type your message..."
+//                   className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+//                   disabled={sendingMessage}
+//                 />
+//                 <button
+//                   onClick={sendMessage}
+//                   disabled={sendingMessage || !newMessage.trim()}
+//                   className="bg-blue-600 text-white px-4 py-2 rounded-full hover:bg-blue-700 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[44px]"
+//                 >
+//                   {sendingMessage ? (
+//                     <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+//                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+//                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+//                     </svg>
+//                   ) : (
+//                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+//                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+//                     </svg>
+//                   )}
+//                 </button>
+//               </div>
+//               <p className="text-xs text-gray-500 text-center mt-2">
+//                 Press Enter to send • Shift + Enter for new line
+//                 {isPolling && <span className="ml-2">• Auto-refresh: ON</span>}
+//               </p>
+//             </div>
+//           </div>
+//         </div>
+//       )}
 
 //       {/* Appointment Details Modal */}
 //       {showModal && selectedAppointment && (
@@ -622,6 +1291,17 @@
 //               </div>
 
 //               <div className="space-y-6">
+//                 {/* Consultation Type Badge */}
+//                 <div className="flex items-center justify-between">
+//                   <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium border ${getConsultationTypeColor(selectedAppointment.consultationType)}`}>
+//                     <span className="mr-2 text-lg">{getConsultationTypeIcon(selectedAppointment.consultationType)}</span>
+//                     {selectedAppointment.consultationType?.charAt(0).toUpperCase() + selectedAppointment.consultationType?.slice(1) || "Not specified"} Consultation
+//                   </span>
+//                   <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(selectedAppointment.status)}`}>
+//                     {selectedAppointment.status?.charAt(0).toUpperCase() + selectedAppointment.status?.slice(1) || "Unknown"}
+//                   </span>
+//                 </div>
+
 //                 {/* Price Summary */}
 //                 <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-4">
 //                   <h4 className="text-lg font-semibold text-green-900 mb-2">Payment Information</h4>
@@ -635,30 +1315,92 @@
 //                       <p className="text-green-600 text-sm">
 //                         {selectedAppointment.status === "completed" ? "Paid" : 
 //                          selectedAppointment.status === "confirmed" ? "Confirmed" : 
-//                          selectedAppointment.status === "pending" ? "Pending Payment" : "Cancelled"}
+//                          selectedAppointment.status === "pending" ? "Pending Payment" : 
+//                          selectedAppointment.status === "cancelled" ? "Cancelled" : "Unknown"}
 //                       </p>
 //                     </div>
 //                   </div>
 //                 </div>
+
+//                 {/* Meeting Link Section for Online Consultations */}
+//                 {selectedAppointment.consultationType === "online" && (
+//                   <div className="border border-blue-200 rounded-lg p-4 bg-blue-50">
+//                     <h4 className="text-lg font-semibold text-blue-900 mb-3">Online Consultation</h4>
+//                     {selectedAppointment.meetingLink ? (
+//                       <div>
+//                         <p className="text-blue-700 font-medium mb-2">Meeting Link:</p>
+//                         <div className="flex items-center justify-between bg-white p-3 rounded border">
+//                           <a 
+//                             href={selectedAppointment.meetingLink} 
+//                             target="_blank" 
+//                             rel="noopener noreferrer"
+//                             className="text-blue-600 hover:text-blue-800 text-sm truncate flex-1 mr-2"
+//                           >
+//                             {selectedAppointment.meetingLink}
+//                           </a>
+//                           <button
+//                             onClick={() => navigator.clipboard.writeText(selectedAppointment.meetingLink)}
+//                             className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+//                           >
+//                             Copy
+//                           </button>
+//                         </div>
+//                         <div className="mt-3 flex gap-2">
+//                           <button
+//                             onClick={() => window.open(selectedAppointment.meetingLink, '_blank', 'noopener,noreferrer')}
+//                             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition duration-200 font-medium flex items-center"
+//                           >
+//                             <span className="mr-2">🎥</span>
+//                             Join Meeting
+//                           </button>
+//                           <button
+//                             onClick={() => {
+//                               setConsultationLink(selectedAppointment.meetingLink);
+//                               setShowLinkModal(true);
+//                               setShowModal(false);
+//                             }}
+//                             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200 font-medium"
+//                           >
+//                             Resend Link
+//                           </button>
+//                         </div>
+//                       </div>
+//                     ) : (
+//                       <div>
+//                         <p className="text-blue-700 mb-3">No meeting link has been sent to the patient yet.</p>
+//                         <button
+//                           onClick={() => {
+//                             setConsultationLink(generateMeetingLink());
+//                             setShowLinkModal(true);
+//                             setShowModal(false);
+//                           }}
+//                           className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition duration-200 font-medium"
+//                         >
+//                           Generate & Send Meeting Link
+//                         </button>
+//                       </div>
+//                     )}
+//                   </div>
+//                 )}
 
 //                 {/* Patient Information */}
 //                 <div className="border border-gray-200 rounded-lg p-4">
 //                   <h4 className="text-lg font-semibold text-gray-900 mb-3">Patient Information</h4>
 //                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
 //                     <div>
-//                       <p><strong>Full Name:</strong> {selectedAppointment.patientDetails.fullName}</p>
-//                       <p><strong>Phone:</strong> {selectedAppointment.patientDetails.phoneNumber}</p>
-//                       <p><strong>Email:</strong> {selectedAppointment.patientDetails.email}</p>
+//                       <p><strong>Full Name:</strong> {selectedAppointment.patientDetails?.fullName || "N/A"}</p>
+//                       <p><strong>Phone:</strong> {selectedAppointment.patientDetails?.phoneNumber || "N/A"}</p>
+//                       <p><strong>Email:</strong> {selectedAppointment.patientDetails?.email || "N/A"}</p>
 //                     </div>
 //                     <div>
-//                       <p><strong>Gender:</strong> {selectedAppointment.patientDetails.gender || "Not specified"}</p>
-//                       <p><strong>Date of Birth:</strong> {selectedAppointment.patientDetails.dateOfBirth ? formatDate(selectedAppointment.patientDetails.dateOfBirth) : "Not provided"}</p>
-//                       {selectedAppointment.patientDetails.dateOfBirth && (
+//                       <p><strong>Gender:</strong> {selectedAppointment.patientDetails?.gender || "Not specified"}</p>
+//                       <p><strong>Date of Birth:</strong> {selectedAppointment.patientDetails?.dateOfBirth ? formatDate(selectedAppointment.patientDetails.dateOfBirth) : "Not provided"}</p>
+//                       {selectedAppointment.patientDetails?.dateOfBirth && (
 //                         <p><strong>Age:</strong> {calculateAge(selectedAppointment.patientDetails.dateOfBirth)} years</p>
 //                       )}
 //                     </div>
 //                   </div>
-//                   {selectedAppointment.patientDetails.address && (
+//                   {selectedAppointment.patientDetails?.address && (
 //                     <p className="mt-2 text-sm"><strong>Address:</strong> {selectedAppointment.patientDetails.address}</p>
 //                   )}
 //                 </div>
@@ -669,14 +1411,14 @@
 //                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
 //                     <div>
 //                       <p><strong>Date:</strong> {formatDate(selectedAppointment.appointmentDate)}</p>
-//                       <p><strong>Time:</strong> {formatTime(selectedAppointment.timeSlot.startTime)} - {formatTime(selectedAppointment.timeSlot.endTime)}</p>
-//                       <p><strong>Day:</strong> {selectedAppointment.timeSlot.day}</p>
+//                       <p><strong>Time:</strong> {formatTime(selectedAppointment.timeSlot?.startTime)} - {formatTime(selectedAppointment.timeSlot?.endTime)}</p>
+//                       <p><strong>Day:</strong> {selectedAppointment.timeSlot?.day || "N/A"}</p>
 //                     </div>
 //                     <div>
 //                       <p><strong>Appointment ID:</strong> {selectedAppointment.appointmentNumber}</p>
 //                       <p><strong>Status:</strong> 
 //                         <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedAppointment.status)}`}>
-//                           {selectedAppointment.status.charAt(0).toUpperCase() + selectedAppointment.status.slice(1)}
+//                           {selectedAppointment.status?.charAt(0).toUpperCase() + selectedAppointment.status?.slice(1) || "Unknown"}
 //                         </span>
 //                       </p>
 //                       <p><strong>Booked On:</strong> {formatDate(selectedAppointment.createdAt)}</p>
@@ -691,10 +1433,10 @@
 //                     <div>
 //                       <p className="font-semibold text-sm text-gray-700">Medical Concern:</p>
 //                       <p className="text-sm text-gray-900 bg-gray-50 p-3 rounded mt-1">
-//                         {selectedAppointment.patientDetails.medicalConcern}
+//                         {selectedAppointment.patientDetails?.medicalConcern || "Not specified"}
 //                       </p>
 //                     </div>
-//                     {selectedAppointment.patientDetails.previousConditions && (
+//                     {selectedAppointment.patientDetails?.previousConditions && (
 //                       <div>
 //                         <p className="font-semibold text-sm text-gray-700">Previous Conditions:</p>
 //                         <p className="text-sm text-gray-900 bg-gray-50 p-3 rounded mt-1">
@@ -721,11 +1463,163 @@
 //           </div>
 //         </div>
 //       )}
+
+//       {/* Enhanced Send Consultation Link Modal */}
+//       {showLinkModal && selectedAppointment && (
+//         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+//           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full">
+//             <div className="p-6">
+//               <div className="flex justify-between items-center mb-6">
+//                 <h3 className="text-xl font-bold text-gray-900">Setup Online Consultation</h3>
+//                 <button
+//                   onClick={() => {
+//                     setShowLinkModal(false);
+//                     setConsultationLink("");
+//                     setSelectedPlatform("google");
+//                     setMeetingInstructions("");
+//                   }}
+//                   className="text-gray-400 hover:text-gray-600"
+//                 >
+//                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+//                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+//                   </svg>
+//                 </button>
+//               </div>
+
+//               <div className="space-y-4">
+//                 {/* Platform Selection */}
+//                 <div>
+//                   <label className="block text-sm font-medium text-gray-700 mb-2">
+//                     Select Platform
+//                   </label>
+//                   <div className="grid grid-cols-3 gap-2">
+//                     {[
+//                       { id: "google", name: "Google Meet", icon: "🔵" },
+//                       { id: "zoom", name: "Zoom", icon: "🎥" },
+//                       { id: "teams", name: "Teams", icon: "💼" }
+//                     ].map((platform) => (
+//                       <button
+//                         key={platform.id}
+//                         onClick={() => handlePlatformChange(platform.id)}
+//                         className={`p-3 border rounded-lg text-center transition duration-200 ${
+//                           selectedPlatform === platform.id
+//                             ? "border-blue-500 bg-blue-50"
+//                             : "border-gray-300 hover:border-gray-400"
+//                         }`}
+//                       >
+//                         <div className="text-lg mb-1">{platform.icon}</div>
+//                         <div className="text-xs font-medium text-gray-700">{platform.name}</div>
+//                       </button>
+//                     ))}
+//                   </div>
+//                 </div>
+
+//                 <div>
+//                   <label className="block text-sm font-medium text-gray-700 mb-2">
+//                     Consultation Link
+//                   </label>
+//                   <div className="flex space-x-2">
+//                     <input
+//                       type="url"
+//                       value={consultationLink}
+//                       onChange={(e) => setConsultationLink(e.target.value)}
+//                       placeholder="Meeting link will be generated automatically"
+//                       className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+//                     />
+//                     <button
+//                       onClick={() => setConsultationLink(generateMeetingLink(selectedPlatform))}
+//                       className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition duration-200"
+//                       title="Generate new link"
+//                     >
+//                       🔄
+//                     </button>
+//                   </div>
+//                   <p className="text-xs text-gray-500 mt-1">
+//                     The link will be sent to the patient's email
+//                   </p>
+//                 </div>
+
+//                 {/* Additional Meeting Details */}
+//                 <div>
+//                   <label className="block text-sm font-medium text-gray-700 mb-2">
+//                     Meeting Details (Optional)
+//                   </label>
+//                   <textarea
+//                     value={meetingInstructions}
+//                     onChange={(e) => setMeetingInstructions(e.target.value)}
+//                     placeholder="Add any special instructions for the patient..."
+//                     rows="3"
+//                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+//                   />
+//                 </div>
+
+//                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+//                   <p className="text-sm text-blue-800">
+//                     <strong>Recipient:</strong> {selectedAppointment.patientDetails?.email || "N/A"}
+//                   </p>
+//                   <p className="text-sm text-blue-800 mt-1">
+//                     <strong>Appointment:</strong> {formatDate(selectedAppointment.appointmentDate)} at {formatTime(selectedAppointment.timeSlot?.startTime)}
+//                   </p>
+//                 </div>
+
+//                 <div className="flex justify-end space-x-3 mt-6">
+//                   <button
+//                     onClick={() => {
+//                       setShowLinkModal(false);
+//                       setConsultationLink("");
+//                       setSelectedPlatform("google");
+//                       setMeetingInstructions("");
+//                     }}
+//                     className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition duration-200"
+//                   >
+//                     Cancel
+//                   </button>
+//                   <button
+//                     onClick={() => handleSendConsultationLink(selectedAppointment)}
+//                     disabled={sendingLink || !consultationLink.trim()}
+//                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200 font-medium disabled:opacity-50 flex items-center"
+//                   >
+//                     {sendingLink ? (
+//                       <>
+//                         <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+//                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+//                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+//                         </svg>
+//                         Sending...
+//                       </>
+//                     ) : (
+//                       <>
+//                         <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+//                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+//                         </svg>
+//                         Send Link
+//                       </>
+//                     )}
+//                   </button>
+//                 </div>
+//               </div>
+//             </div>
+//           </div>
+//         </div>
+//       )}
 //     </div>
 //   );
 // };
 
 // export default DoctorAppointments;
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -740,6 +1634,7 @@ import axios from "axios";
 const DoctorAppointments = () => {
   const navigate = useNavigate();
   const [appointments, setAppointments] = useState([]);
+  const [filteredAppointments, setFilteredAppointments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("today");
@@ -747,31 +1642,50 @@ const DoctorAppointments = () => {
   const [showModal, setShowModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [doctorId, setDoctorId] = useState(null);
+  const [doctorName, setDoctorName] = useState("");
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [consultationLink, setConsultationLink] = useState("");
   const [sendingLink, setSendingLink] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState("google");
   const [meetingInstructions, setMeetingInstructions] = useState("");
+  const [unreadCounts, setUnreadCounts] = useState({});
+  const [alert, setAlert] = useState({ show: false, type: "", message: "" });
 
+  // Initialize component
   useEffect(() => {
     const doctorIdFromLocalStorage = localStorage.getItem("doctorId");
+    const doctorNameFromStorage = localStorage.getItem("doctorName");
+    
     if (!doctorIdFromLocalStorage) {
       navigate("/doctor/login");
       return;
     }
+    
     setDoctorId(doctorIdFromLocalStorage);
+    setDoctorName(doctorNameFromStorage || "Dr. Apsara Chanuka");
     fetchDoctorAppointments(doctorIdFromLocalStorage);
+    fetchUnreadCounts(doctorIdFromLocalStorage);
   }, [navigate]);
 
+  useEffect(() => {
+    filterAppointments();
+  }, [appointments, filter]);
+
+  // Fetch doctor appointments
   const fetchDoctorAppointments = async (doctorId) => {
     try {
       setIsLoading(true);
       setError("");
       const response = await axios.get(`http://localhost:5000/api/appointments/doctor/${doctorId}`);
-      setAppointments(response.data);
+      
+      if (response.data && Array.isArray(response.data)) {
+        setAppointments(response.data);
+      } else {
+        throw new Error("Invalid response format");
+      }
     } catch (error) {
       console.error("Error fetching doctor appointments:", error);
-      const mockAppointments = generateMockAppointments();
+      const mockAppointments = generateMockAppointments(doctorId, doctorName);
       setAppointments(mockAppointments);
       setError("Connected to demo mode. Using sample appointment data.");
     } finally {
@@ -779,7 +1693,24 @@ const DoctorAppointments = () => {
     }
   };
 
-  const generateMockAppointments = () => {
+  // Fetch unread counts
+  const fetchUnreadCounts = async (userId) => {
+    try {
+      const response = await axios.get(`http://localhost:5000/api/chat/unread/${userId}/doctor`);
+      if (response.data.success) {
+        const counts = {};
+        response.data.chats?.forEach(chat => {
+          counts[chat.appointmentId] = chat.unreadCount;
+        });
+        setUnreadCounts(counts);
+      }
+    } catch (error) {
+      console.error('Error fetching unread counts:', error);
+    }
+  };
+
+  // Generate mock appointments for demo
+  const generateMockAppointments = (doctorId, doctorName) => {
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -789,15 +1720,16 @@ const DoctorAppointments = () => {
 
     return [
       {
-        _id: "1",
+        _id: "appointment_1",
         appointmentNumber: "APT-202412-0001",
         doctorId: doctorId,
-        doctorName: "Dr. Apsara Chanuka",
+        doctorName: doctorName || "Dr. Apsara Chanuka",
         doctorSpecialization: "Neurology",
         price: 150.00,
         consultationType: "online",
         meetingLink: "https://meet.google.com/abc-def-ghi",
         patientDetails: {
+          _id: "patient_1",
           fullName: "John Doe",
           email: "john@example.com",
           phoneNumber: "+1234567890",
@@ -818,15 +1750,16 @@ const DoctorAppointments = () => {
         createdAt: new Date().toISOString()
       },
       {
-        _id: "2",
+        _id: "appointment_2",
         appointmentNumber: "APT-202412-0002",
         doctorId: doctorId,
-        doctorName: "Dr. Apsara Chanuka",
+        doctorName: doctorName || "Dr. Apsara Chanuka",
         doctorSpecialization: "Neurology",
         price: 150.00,
         consultationType: "physical",
         meetingLink: "",
         patientDetails: {
+          _id: "patient_2",
           fullName: "Jane Smith",
           email: "jane@example.com",
           phoneNumber: "+1234567891",
@@ -847,15 +1780,16 @@ const DoctorAppointments = () => {
         createdAt: new Date().toISOString()
       },
       {
-        _id: "3",
+        _id: "appointment_3",
         appointmentNumber: "APT-202412-0003",
         doctorId: doctorId,
-        doctorName: "Dr. Apsara Chanuka",
+        doctorName: doctorName || "Dr. Apsara Chanuka",
         doctorSpecialization: "Neurology",
         price: 200.00,
         consultationType: "online",
         meetingLink: "",
         patientDetails: {
+          _id: "patient_3",
           fullName: "Robert Johnson",
           email: "robert@example.com",
           phoneNumber: "+1234567892",
@@ -876,15 +1810,16 @@ const DoctorAppointments = () => {
         createdAt: new Date().toISOString()
       },
       {
-        _id: "4",
+        _id: "appointment_4",
         appointmentNumber: "APT-202412-0004",
         doctorId: doctorId,
-        doctorName: "Dr. Apsara Chanuka",
+        doctorName: doctorName || "Dr. Apsara Chanuka",
         doctorSpecialization: "Neurology",
         price: 180.00,
         consultationType: "online",
         meetingLink: "https://zoom.us/j/123456789",
         patientDetails: {
+          _id: "patient_4",
           fullName: "Sarah Wilson",
           email: "sarah@example.com",
           phoneNumber: "+1234567893",
@@ -907,7 +1842,7 @@ const DoctorAppointments = () => {
     ];
   };
 
-  // Enhanced meeting link generation with platform selection
+  // Generate meeting link
   const generateMeetingLink = (platform = "google") => {
     const platforms = {
       google: {
@@ -944,49 +1879,72 @@ const DoctorAppointments = () => {
     setConsultationLink(generateMeetingLink(platform));
   };
 
-  const filteredAppointments = appointments.filter(appointment => {
+  // Filter appointments
+  const filterAppointments = () => {
+    if (!appointments.length) {
+      setFilteredAppointments([]);
+      return;
+    }
+
     const now = new Date();
-    const appointmentDate = new Date(appointment.appointmentDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    let filtered = appointments;
 
     switch (filter) {
       case "today":
-        const appointmentDay = new Date(appointmentDate);
-        appointmentDay.setHours(0, 0, 0, 0);
-        return appointmentDay.getTime() === today.getTime();
+        filtered = appointments.filter(appointment => {
+          if (!appointment || !appointment.appointmentDate) return false;
+          const appointmentDate = new Date(appointment.appointmentDate);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          appointmentDate.setHours(0, 0, 0, 0);
+          return appointmentDate.getTime() === today.getTime();
+        });
+        break;
       case "upcoming":
-        return appointmentDate >= now && (appointment.status === "pending" || appointment.status === "confirmed");
+        filtered = appointments.filter(appointment => {
+          if (!appointment || !appointment.appointmentDate) return false;
+          const appointmentDate = new Date(appointment.appointmentDate);
+          return appointmentDate >= now && (appointment.status === "pending" || appointment.status === "confirmed");
+        });
+        break;
       case "pending":
-        return appointment.status === "pending";
+        filtered = appointments.filter(appointment => appointment.status === "pending");
+        break;
       case "online":
-        return appointment.consultationType === "online";
+        filtered = appointments.filter(appointment => appointment.consultationType === "online");
+        break;
       case "physical":
-        return appointment.consultationType === "physical";
+        filtered = appointments.filter(appointment => appointment.consultationType === "physical");
+        break;
       case "all":
-        return true;
       default:
-        return true;
+        filtered = appointments;
     }
-  });
 
+    setFilteredAppointments(filtered);
+  };
+
+  // Handle appointment status update
   const handleStatusUpdate = async (appointmentId, newStatus) => {
     setActionLoading(true);
     try {
-      await axios.put(`http://localhost:5000/api/appointments/${appointmentId}/status`, { status: newStatus });
+      await axios.put(`http://localhost:5000/api/appointments/${appointmentId}/status`, { 
+        status: newStatus,
+        doctorId: doctorId 
+      });
       setAppointments(prev => prev.map(apt => apt._id === appointmentId ? { ...apt, status: newStatus } : apt));
       setShowModal(false);
       setSelectedAppointment(null);
-      alert(`Appointment ${newStatus} successfully.`);
+      showAlert("success", `Appointment ${newStatus} successfully.`);
     } catch (error) {
       console.error("Error updating appointment status:", error);
-      alert("Failed to update appointment status. Please try again.");
+      showAlert("error", "Failed to update appointment status. Please try again.");
     } finally {
       setActionLoading(false);
     }
   };
 
-  // Enhanced email notification simulation
+  // Send consultation link
   const sendLinkNotification = async (appointment, link, platform, instructions) => {
     const platformInstructions = {
       google: "Please join using your Google account. No additional software needed.",
@@ -1025,7 +1983,6 @@ ${appointment.doctorSpecialization}
 
     console.log("Sending email:", emailContent);
     
-    // Simulate API call
     return new Promise((resolve) => {
       setTimeout(() => {
         console.log(`Email sent successfully to ${appointment.patientDetails.email}`);
@@ -1036,16 +1993,17 @@ ${appointment.doctorSpecialization}
 
   const handleSendConsultationLink = async (appointment) => {
     if (!consultationLink.trim()) {
-      alert("Please enter a valid consultation link");
+      showAlert("error", "Please enter a valid consultation link");
       return;
     }
 
     setSendingLink(true);
     try {
-      // In a real application, you would send this to your backend
+      // Update appointment with meeting link
       await axios.put(`http://localhost:5000/api/appointments/${appointment._id}/meeting-link`, {
         meetingLink: consultationLink,
-        meetingPlatform: selectedPlatform
+        meetingPlatform: selectedPlatform,
+        doctorId: doctorId
       });
 
       // Update local state
@@ -1058,14 +2016,14 @@ ${appointment.doctorSpecialization}
       // Send email notification
       await sendLinkNotification(appointment, consultationLink, selectedPlatform, meetingInstructions);
 
-      alert("Consultation link sent successfully!");
+      showAlert("success", "Consultation link sent successfully!");
       setShowLinkModal(false);
       setConsultationLink("");
       setMeetingInstructions("");
       setSelectedPlatform("google");
     } catch (error) {
       console.error("Error sending consultation link:", error);
-      alert("Failed to send consultation link. Please try again.");
+      showAlert("error", "Failed to send consultation link. Please try again.");
     } finally {
       setSendingLink(false);
     }
@@ -1093,16 +2051,20 @@ ${appointment.doctorSpecialization}
         break;
       case "join-call":
         if (appointment.meetingLink) {
-          window.open(appointment.meetingLink, '_blank');
+          window.open(appointment.meetingLink, '_blank', 'noopener,noreferrer');
         } else {
-          alert("No meeting link available. Please generate and send a link first.");
+          showAlert("error", "No meeting link available. Please generate and send a link first.");
         }
+        break;
+      case "chat":
+        navigate(`/doctor/chat/${appointment._id}`);
         break;
       default:
         break;
     }
   };
 
+  // UI Helper functions
   const getStatusColor = (status) => {
     switch (status) {
       case "confirmed":
@@ -1156,20 +2118,30 @@ ${appointment.doctorSpecialization}
   };
 
   const formatTime = (timeString) => {
-    return new Date(`2000-01-01T${timeString}`).toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
+    if (!timeString) return "N/A";
+    try {
+      return new Date(`2000-01-01T${timeString}`).toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    } catch (error) {
+      return timeString;
+    }
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    if (!dateString) return "N/A";
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch (error) {
+      return dateString;
+    }
   };
 
   const formatPrice = (price) => {
@@ -1181,16 +2153,21 @@ ${appointment.doctorSpecialization}
   };
 
   const calculateAge = (dateOfBirth) => {
-    const today = new Date();
-    const birthDate = new Date(dateOfBirth);
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
+    if (!dateOfBirth) return "N/A";
+    try {
+      const today = new Date();
+      const birthDate = new Date(dateOfBirth);
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      
+      return age;
+    } catch (error) {
+      return "N/A";
     }
-    
-    return age;
   };
 
   const getAppointmentStats = () => {
@@ -1198,12 +2175,14 @@ ${appointment.doctorSpecialization}
     today.setHours(0, 0, 0, 0);
     
     const todayAppointments = appointments.filter(apt => {
+      if (!apt || !apt.appointmentDate) return false;
       const aptDate = new Date(apt.appointmentDate);
       aptDate.setHours(0, 0, 0, 0);
       return aptDate.getTime() === today.getTime();
     });
 
     const upcomingAppointments = appointments.filter(apt => 
+      apt && apt.appointmentDate && 
       new Date(apt.appointmentDate) >= new Date() && 
       (apt.status === "pending" || apt.status === "confirmed")
     );
@@ -1226,7 +2205,34 @@ ${appointment.doctorSpecialization}
     };
   };
 
+  const showAlert = (type, message) => {
+    setAlert({ show: true, type, message });
+    setTimeout(() => setAlert({ show: false, type: "", message: "" }), 5000);
+  };
+
   const stats = getAppointmentStats();
+
+  // Check if appointment can be cancelled
+  const canCancelAppointment = (appointment) => {
+    if (appointment.status === "cancelled" || appointment.status === "completed") {
+      return false;
+    }
+
+    const appointmentDate = new Date(appointment.appointmentDate);
+    const now = new Date();
+    
+    // Allow cancellation only for future appointments
+    return appointmentDate > now;
+  };
+
+  // Refresh appointments
+  const refreshAppointments = () => {
+    if (doctorId) {
+      fetchDoctorAppointments(doctorId);
+      fetchUnreadCounts(doctorId);
+      showAlert("info", "Refreshing appointments...");
+    }
+  };
 
   if (isLoading) {
     return (
@@ -1249,6 +2255,9 @@ ${appointment.doctorSpecialization}
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Appointment Management</h1>
               <p className="text-gray-600 mt-1">Manage your patient appointments and schedule</p>
+              {doctorName && (
+                <p className="text-gray-500 text-sm mt-1">Welcome, {doctorName}</p>
+              )}
             </div>
             <div className="flex items-center space-x-4">
               <button
@@ -1266,6 +2275,35 @@ ${appointment.doctorSpecialization}
       </header>
 
       <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        {/* Alert */}
+        {alert.show && (
+          <div className={`mb-6 border rounded-lg p-4 ${
+            alert.type === "success" 
+              ? "bg-green-50 border-green-200 text-green-800" 
+              : alert.type === "error"
+              ? "bg-red-50 border-red-200 text-red-800"
+              : "bg-blue-50 border-blue-200 text-blue-800"
+          }`}>
+            <div className="flex items-center">
+              <svg className={`w-5 h-5 mr-2 ${
+                alert.type === "success" ? "text-green-400" : 
+                alert.type === "error" ? "text-red-400" : 
+                "text-blue-400"
+              }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                  d={alert.type === "success" ? 
+                    "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" :
+                    alert.type === "error" ?
+                    "M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" :
+                    "M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  } 
+                />
+              </svg>
+              <span className="font-medium">{alert.message}</span>
+            </div>
+          </div>
+        )}
+
         {/* Demo Mode Notice */}
         {error && (
           <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -1283,165 +2321,79 @@ ${appointment.doctorSpecialization}
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className="bg-blue-100 p-3 rounded-lg">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className="bg-green-100 p-3 rounded-lg">
-                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Today</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.today}</p>
+          {[
+            { label: "Total", value: stats.total, icon: "📅", color: "blue" },
+            { label: "Today", value: stats.today, icon: "✓", color: "green" },
+            { label: "Pending", value: stats.pending, icon: "⏳", color: "yellow" },
+            { label: "Online", value: stats.online, icon: "💻", color: "blue" },
+            { label: "Physical", value: stats.physical, icon: "🏥", color: "orange" },
+            { label: "Revenue", value: formatPrice(stats.totalRevenue), icon: "💰", color: "purple" }
+          ].map((stat, index) => (
+            <div key={index} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center">
+                <div className={`bg-${stat.color}-100 p-3 rounded-lg`}>
+                  <span className={`text-${stat.color}-600 text-lg`}>{stat.icon}</span>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">{stat.label}</p>
+                  <p className={`text-2xl font-bold ${stat.label === "Revenue" ? "text-green-700" : "text-gray-900"}`}>
+                    {stat.value}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className="bg-yellow-100 p-3 rounded-lg">
-                <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Pending</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.pending}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className="bg-blue-100 p-3 rounded-lg">
-                <span className="text-blue-600 text-lg">💻</span>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Online</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.online}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className="bg-orange-100 p-3 rounded-lg">
-                <span className="text-orange-600 text-lg">🏥</span>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Physical</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.physical}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className="bg-purple-100 p-3 rounded-lg">
-                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Revenue</p>
-                <p className="text-2xl font-bold text-green-700">{formatPrice(stats.totalRevenue)}</p>
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
 
         {/* Filters */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
           <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setFilter("today")}
-              className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
-                filter === "today" 
-                  ? "bg-blue-600 text-white" 
-                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-              }`}
-            >
-              Today
-            </button>
-            <button
-              onClick={() => setFilter("upcoming")}
-              className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
-                filter === "upcoming" 
-                  ? "bg-blue-600 text-white" 
-                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-              }`}
-            >
-              Upcoming
-            </button>
-            <button
-              onClick={() => setFilter("pending")}
-              className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
-                filter === "pending" 
-                  ? "bg-blue-600 text-white" 
-                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-              }`}
-            >
-              Pending
-            </button>
-            <button
-              onClick={() => setFilter("online")}
-              className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
-                filter === "online" 
-                  ? "bg-blue-600 text-white" 
-                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-              }`}
-            >
-              Online
-            </button>
-            <button
-              onClick={() => setFilter("physical")}
-              className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
-                filter === "physical" 
-                  ? "bg-blue-600 text-white" 
-                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-              }`}
-            >
-              Physical
-            </button>
-            <button
-              onClick={() => setFilter("all")}
-              className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
-                filter === "all" 
-                  ? "bg-blue-600 text-white" 
-                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-              }`}
-            >
-              All
-            </button>
+            {[
+              { key: "today", label: "Today" },
+              { key: "upcoming", label: "Upcoming" },
+              { key: "pending", label: "Pending" },
+              { key: "online", label: "Online" },
+              { key: "physical", label: "Physical" },
+              { key: "all", label: "All" }
+            ].map((filterOption) => (
+              <button
+                key={filterOption.key}
+                onClick={() => setFilter(filterOption.key)}
+                className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
+                  filter === filterOption.key 
+                    ? "bg-blue-600 text-white" 
+                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                }`}
+              >
+                {filterOption.label}
+              </button>
+            ))}
           </div>
         </div>
 
         {/* Appointments List */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">
-              {filter === "today" && "Today's Appointments"}
-              {filter === "upcoming" && "Upcoming Appointments"}
-              {filter === "pending" && "Pending Approval"}
-              {filter === "online" && "Online Consultations"}
-              {filter === "physical" && "Physical Appointments"}
-              {filter === "all" && "All Appointments"}
-              <span className="text-gray-500 ml-2">({filteredAppointments.length})</span>
-            </h2>
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold text-gray-900">
+                {filter === "today" && "Today's Appointments"}
+                {filter === "upcoming" && "Upcoming Appointments"}
+                {filter === "pending" && "Pending Approval"}
+                {filter === "online" && "Online Consultations"}
+                {filter === "physical" && "Physical Appointments"}
+                {filter === "all" && "All Appointments"}
+                <span className="text-gray-500 ml-2">({filteredAppointments.length})</span>
+              </h2>
+              <button
+                onClick={refreshAppointments}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition duration-200 flex items-center"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Refresh
+              </button>
+            </div>
           </div>
 
           {filteredAppointments.length === 0 ? (
@@ -1465,17 +2417,17 @@ ${appointment.doctorSpecialization}
                       <div className="flex items-start justify-between mb-3">
                         <div>
                           <h3 className="text-lg font-semibold text-gray-900">
-                            {appointment.patientDetails.fullName}
+                            {appointment.patientDetails?.fullName || "Unknown Patient"}
                           </h3>
                           <p className="text-gray-600">
-                            {formatDate(appointment.appointmentDate)} • {formatTime(appointment.timeSlot.startTime)} - {formatTime(appointment.timeSlot.endTime)}
+                            {formatDate(appointment.appointmentDate)} • {formatTime(appointment.timeSlot?.startTime)} - {formatTime(appointment.timeSlot?.endTime)}
                           </p>
                         </div>
                         <div className="flex flex-col items-end gap-2">
                           <div className="flex gap-2">
                             <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(appointment.status)}`}>
                               <span className="mr-1">{getStatusIcon(appointment.status)}</span>
-                              {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
+                              {appointment.status?.charAt(0).toUpperCase() + appointment.status?.slice(1) || "Unknown"}
                             </span>
                             <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getConsultationTypeColor(appointment.consultationType)}`}>
                               <span className="mr-1">{getConsultationTypeIcon(appointment.consultationType)}</span>
@@ -1494,35 +2446,35 @@ ${appointment.doctorSpecialization}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                         <div>
                           <p className="text-gray-600 mb-1">
-                            <strong>Contact:</strong> {appointment.patientDetails.phoneNumber}
+                            <strong>Contact:</strong> {appointment.patientDetails?.phoneNumber || "N/A"}
                           </p>
                           <p className="text-gray-600">
-                            <strong>Email:</strong> {appointment.patientDetails.email}
+                            <strong>Email:</strong> {appointment.patientDetails?.email || "N/A"}
                           </p>
                         </div>
                         <div>
                           <p className="text-gray-600 mb-1">
-                            <strong>Appointment ID:</strong> {appointment.appointmentNumber}
+                            <strong>Appointment ID:</strong> {appointment.appointmentNumber || "N/A"}
                           </p>
                           <p className="text-gray-600">
                             <strong>Age/Gender:</strong> 
-                            {` ${calculateAge(appointment.patientDetails.dateOfBirth)} years / ${appointment.patientDetails.gender || "Not specified"}`}
+                            {` ${calculateAge(appointment.patientDetails?.dateOfBirth)} years / ${appointment.patientDetails?.gender || "Not specified"}`}
                           </p>
                         </div>
                       </div>
 
                       <div className="mt-3">
                         <p className="text-sm text-gray-600">
-                          <strong>Medical Concern:</strong> {appointment.patientDetails.medicalConcern}
+                          <strong>Medical Concern:</strong> {appointment.patientDetails?.medicalConcern || "Not specified"}
                         </p>
-                        {appointment.patientDetails.previousConditions && (
+                        {appointment.patientDetails?.previousConditions && (
                           <p className="text-sm text-gray-600 mt-1">
                             <strong>Previous Conditions:</strong> {appointment.patientDetails.previousConditions}
                           </p>
                         )}
                       </div>
 
-                      {/* Enhanced Online Consultation Status Display */}
+                      {/* Online Consultation Status Display */}
                       {appointment.consultationType === "online" && (
                         <div className="mt-3">
                           <div className={`p-3 rounded-lg border ${
@@ -1548,7 +2500,7 @@ ${appointment.doctorSpecialization}
                                     Copy
                                   </button>
                                   <button
-                                    onClick={() => window.open(appointment.meetingLink, '_blank')}
+                                    onClick={() => window.open(appointment.meetingLink, '_blank', 'noopener,noreferrer')}
                                     className="text-sm text-green-600 hover:text-green-800 font-medium"
                                   >
                                     Test
@@ -1572,6 +2524,22 @@ ${appointment.doctorSpecialization}
                     </div>
 
                     <div className="mt-4 lg:mt-0 lg:ml-6 flex flex-col sm:flex-row gap-2">
+                      {/* Chat Button with Unread Badge - Navigates to separate chat page */}
+                      <button
+                        onClick={() => handleActionClick(appointment, "chat")}
+                        className="relative px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition duration-200 font-medium flex items-center"
+                      >
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                        Chat
+                        {unreadCounts[appointment._id] > 0 && (
+                          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                            {unreadCounts[appointment._id] > 9 ? '9+' : unreadCounts[appointment._id]}
+                          </span>
+                        )}
+                      </button>
+                      
                       <button
                         onClick={() => handleActionClick(appointment, "view")}
                         className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200 font-medium"
@@ -1638,6 +2606,42 @@ ${appointment.doctorSpecialization}
             </div>
           )}
         </div>
+
+        {/* Information Section */}
+        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-6">
+          <div className="flex items-start">
+            <div className="flex-shrink-0 bg-blue-100 p-3 rounded-lg">
+              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <h4 className="text-lg font-semibold text-gray-900">Quick Actions Guide</h4>
+              <ul className="mt-2 space-y-2 text-sm text-gray-600">
+                <li className="flex items-start">
+                  <span className="text-indigo-500 mr-2">💬</span>
+                  <strong>Chat:</strong> Open dedicated chat window with patient
+                </li>
+                <li className="flex items-start">
+                  <span className="text-blue-500 mr-2">👁️</span>
+                  <strong>View Details:</strong> See complete appointment information
+                </li>
+                <li className="flex items-start">
+                  <span className="text-green-500 mr-2">🎥</span>
+                  <strong>Join Call:</strong> Start online consultation (for online appointments)
+                </li>
+                <li className="flex items-start">
+                  <span className="text-purple-500 mr-2">🔗</span>
+                  <strong>Send Link:</strong> Generate and send meeting link to patient
+                </li>
+                <li className="flex items-start">
+                  <span className="text-yellow-500 mr-2">⏳</span>
+                  <strong>Pending:</strong> Appointments awaiting your confirmation
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Appointment Details Modal */}
@@ -1668,7 +2672,7 @@ ${appointment.doctorSpecialization}
                     {selectedAppointment.consultationType?.charAt(0).toUpperCase() + selectedAppointment.consultationType?.slice(1) || "Not specified"} Consultation
                   </span>
                   <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(selectedAppointment.status)}`}>
-                    {selectedAppointment.status.charAt(0).toUpperCase() + selectedAppointment.status.slice(1)}
+                    {selectedAppointment.status?.charAt(0).toUpperCase() + selectedAppointment.status?.slice(1) || "Unknown"}
                   </span>
                 </div>
 
@@ -1685,7 +2689,8 @@ ${appointment.doctorSpecialization}
                       <p className="text-green-600 text-sm">
                         {selectedAppointment.status === "completed" ? "Paid" : 
                          selectedAppointment.status === "confirmed" ? "Confirmed" : 
-                         selectedAppointment.status === "pending" ? "Pending Payment" : "Cancelled"}
+                         selectedAppointment.status === "pending" ? "Pending Payment" : 
+                         selectedAppointment.status === "cancelled" ? "Cancelled" : "Unknown"}
                       </p>
                     </div>
                   </div>
@@ -1716,7 +2721,7 @@ ${appointment.doctorSpecialization}
                         </div>
                         <div className="mt-3 flex gap-2">
                           <button
-                            onClick={() => window.open(selectedAppointment.meetingLink, '_blank')}
+                            onClick={() => window.open(selectedAppointment.meetingLink, '_blank', 'noopener,noreferrer')}
                             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition duration-200 font-medium flex items-center"
                           >
                             <span className="mr-2">🎥</span>
@@ -1757,19 +2762,19 @@ ${appointment.doctorSpecialization}
                   <h4 className="text-lg font-semibold text-gray-900 mb-3">Patient Information</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div>
-                      <p><strong>Full Name:</strong> {selectedAppointment.patientDetails.fullName}</p>
-                      <p><strong>Phone:</strong> {selectedAppointment.patientDetails.phoneNumber}</p>
-                      <p><strong>Email:</strong> {selectedAppointment.patientDetails.email}</p>
+                      <p><strong>Full Name:</strong> {selectedAppointment.patientDetails?.fullName || "N/A"}</p>
+                      <p><strong>Phone:</strong> {selectedAppointment.patientDetails?.phoneNumber || "N/A"}</p>
+                      <p><strong>Email:</strong> {selectedAppointment.patientDetails?.email || "N/A"}</p>
                     </div>
                     <div>
-                      <p><strong>Gender:</strong> {selectedAppointment.patientDetails.gender || "Not specified"}</p>
-                      <p><strong>Date of Birth:</strong> {selectedAppointment.patientDetails.dateOfBirth ? formatDate(selectedAppointment.patientDetails.dateOfBirth) : "Not provided"}</p>
-                      {selectedAppointment.patientDetails.dateOfBirth && (
+                      <p><strong>Gender:</strong> {selectedAppointment.patientDetails?.gender || "Not specified"}</p>
+                      <p><strong>Date of Birth:</strong> {selectedAppointment.patientDetails?.dateOfBirth ? formatDate(selectedAppointment.patientDetails.dateOfBirth) : "Not provided"}</p>
+                      {selectedAppointment.patientDetails?.dateOfBirth && (
                         <p><strong>Age:</strong> {calculateAge(selectedAppointment.patientDetails.dateOfBirth)} years</p>
                       )}
                     </div>
                   </div>
-                  {selectedAppointment.patientDetails.address && (
+                  {selectedAppointment.patientDetails?.address && (
                     <p className="mt-2 text-sm"><strong>Address:</strong> {selectedAppointment.patientDetails.address}</p>
                   )}
                 </div>
@@ -1780,14 +2785,14 @@ ${appointment.doctorSpecialization}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div>
                       <p><strong>Date:</strong> {formatDate(selectedAppointment.appointmentDate)}</p>
-                      <p><strong>Time:</strong> {formatTime(selectedAppointment.timeSlot.startTime)} - {formatTime(selectedAppointment.timeSlot.endTime)}</p>
-                      <p><strong>Day:</strong> {selectedAppointment.timeSlot.day}</p>
+                      <p><strong>Time:</strong> {formatTime(selectedAppointment.timeSlot?.startTime)} - {formatTime(selectedAppointment.timeSlot?.endTime)}</p>
+                      <p><strong>Day:</strong> {selectedAppointment.timeSlot?.day || "N/A"}</p>
                     </div>
                     <div>
                       <p><strong>Appointment ID:</strong> {selectedAppointment.appointmentNumber}</p>
                       <p><strong>Status:</strong> 
                         <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedAppointment.status)}`}>
-                          {selectedAppointment.status.charAt(0).toUpperCase() + selectedAppointment.status.slice(1)}
+                          {selectedAppointment.status?.charAt(0).toUpperCase() + selectedAppointment.status?.slice(1) || "Unknown"}
                         </span>
                       </p>
                       <p><strong>Booked On:</strong> {formatDate(selectedAppointment.createdAt)}</p>
@@ -1802,10 +2807,10 @@ ${appointment.doctorSpecialization}
                     <div>
                       <p className="font-semibold text-sm text-gray-700">Medical Concern:</p>
                       <p className="text-sm text-gray-900 bg-gray-50 p-3 rounded mt-1">
-                        {selectedAppointment.patientDetails.medicalConcern}
+                        {selectedAppointment.patientDetails?.medicalConcern || "Not specified"}
                       </p>
                     </div>
-                    {selectedAppointment.patientDetails.previousConditions && (
+                    {selectedAppointment.patientDetails?.previousConditions && (
                       <div>
                         <p className="font-semibold text-sm text-gray-700">Previous Conditions:</p>
                         <p className="text-sm text-gray-900 bg-gray-50 p-3 rounded mt-1">
@@ -1818,6 +2823,12 @@ ${appointment.doctorSpecialization}
               </div>
 
               <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  onClick={() => navigate(`/doctor/chat/${selectedAppointment._id}`)}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition duration-200"
+                >
+                  Open Chat
+                </button>
                 <button
                   onClick={() => {
                     setShowModal(false);
@@ -1924,10 +2935,10 @@ ${appointment.doctorSpecialization}
 
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                   <p className="text-sm text-blue-800">
-                    <strong>Recipient:</strong> {selectedAppointment.patientDetails.email}
+                    <strong>Recipient:</strong> {selectedAppointment.patientDetails?.email || "N/A"}
                   </p>
                   <p className="text-sm text-blue-800 mt-1">
-                    <strong>Appointment:</strong> {formatDate(selectedAppointment.appointmentDate)} at {formatTime(selectedAppointment.timeSlot.startTime)}
+                    <strong>Appointment:</strong> {formatDate(selectedAppointment.appointmentDate)} at {formatTime(selectedAppointment.timeSlot?.startTime)}
                   </p>
                 </div>
 

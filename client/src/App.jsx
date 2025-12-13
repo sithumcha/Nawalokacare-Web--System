@@ -24,7 +24,8 @@ import MyAppointments from "./pages/MyAppointments";
 import AppointmentDetails from "./pages/AppointmentDetails";
 import AppointmentsManagement from "./admin/AppointmentsManagement";
 import PaymentPage from "./pages/PaymentPage";
-
+import Chat from "./pages/PatientChat"
+import DoctorChat from "./Doctor/DoctorChat";
 
 
 
@@ -61,25 +62,18 @@ const App = () => {
         <Route path="/usersmanagement" element={<UsersManagement />} />
         <Route path="/navbar" element={<Navbar />} />
         <Route path="/home" element={<Home />} />
-        <Route path="/myappointments" element={<MyAppointments />} />
+        <Route path="/appointments" element={<MyAppointments />} />
         <Route path="/appointments/:id" element={<AppointmentDetails />} />
         <Route path="/appointmentsmanagement" element={<AppointmentsManagement />} />
         <Route path="/book/:id/payment" element={<PaymentPage />} />
+        <Route path="/chat/:appointmentId" element={<Chat />} />
+        <Route path="/doctor/chat/:appointmentId" element={<DoctorChat />} />
 
 
 
-
-       
         {/* <Route path="/doctordetails/:id" element={<DoctorDetails />} /> Single doctor details */}
       
       
-      
-        
-        
-      
-       
-       
-        
 
       </Routes>
     </BrowserRouter>

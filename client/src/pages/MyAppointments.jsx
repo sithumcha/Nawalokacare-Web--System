@@ -1,3 +1,6 @@
+
+
+
 // // src/pages/MyAppointments.jsx
 // import { useState, useEffect } from "react";
 // import axios from "axios";
@@ -15,16 +18,59 @@
 //   const [showCancelModal, setShowCancelModal] = useState(false);
 //   const [alert, setAlert] = useState({ show: false, type: "", message: "" });
 
-//   // Get logged in user ID from localStorage
-//   const loggedInUserId = localStorage.getItem("userId");
-//   const loggedInUserName = localStorage.getItem("userName") || "User";
+//   // ✅ CORRECTED: Get logged in user ID from localStorage - Multiple fallbacks
+//   const getCurrentUserInfo = () => {
+//     // Try multiple possible keys to find user ID
+//     const currentUserId = localStorage.getItem('currentUserId');
+//     const userId = localStorage.getItem('userId');
+//     const userData = localStorage.getItem('user');
+    
+//     let finalUserId = currentUserId || userId;
+    
+//     // If still no user ID, try to parse from user object
+//     if (!finalUserId && userData) {
+//       try {
+//         const user = JSON.parse(userData);
+//         finalUserId = user._id || user.id;
+//       } catch (error) {
+//         console.error("Error parsing user data:", error);
+//       }
+//     }
+    
+//     // Get user name
+//     const userName = localStorage.getItem('userName') || 
+//                     (userData ? JSON.parse(userData).name : null) || 
+//                     "User";
+
+//     console.log("🔍 User ID Debug:", {
+//       currentUserId,
+//       userId,
+//       finalUserId,
+//       userData: userData ? JSON.parse(userData) : null,
+//       userName
+//     });
+
+//     return {
+//       userId: finalUserId,
+//       userName: userName
+//     };
+//   };
+
+//   const { userId: loggedInUserId, userName: loggedInUserName } = getCurrentUserInfo();
 
 //   useEffect(() => {
+//     console.log("🔄 Component mounted - Checking authentication");
+//     console.log("📝 Final User ID:", loggedInUserId);
+//     console.log("🔐 Token exists:", !!localStorage.getItem('token'));
+    
 //     if (!loggedInUserId) {
+//       console.log("❌ No user ID found - showing login required");
 //       setError("Please login to view your appointments");
 //       setIsLoading(false);
 //       return;
 //     }
+    
+//     console.log("✅ User authenticated, fetching appointments...");
 //     fetchAppointments();
 //   }, [loggedInUserId]);
 
@@ -37,30 +83,53 @@
 //       setIsLoading(true);
 //       setError("");
 
+//       console.log("📡 Fetching appointments for user:", loggedInUserId);
+
+//       const token = localStorage.getItem('token');
+//       if (!token) {
+//         throw new Error("No authentication token found");
+//       }
+
 //       const response = await axios.get(
 //         `http://localhost:5000/api/appointments/user/${loggedInUserId}`,
 //         {
 //           timeout: 10000,
 //           headers: {
-//             'Authorization': `Bearer ${localStorage.getItem('token')}`
+//             'Authorization': `Bearer ${token}`
 //           }
 //         }
 //       );
 
-//       console.log("API Response:", response.data);
+//       console.log("✅ Appointments API Response:", response.data);
 
 //       if (response.data.success) {
 //         const userAppointments = response.data.appointments || [];
 //         setAppointments(userAppointments);
         
 //         if (userAppointments.length === 0) {
-//           console.log("No appointments found for this user");
+//           console.log("ℹ️ No appointments found for this user");
+//         } else {
+//           console.log(`📅 Found ${userAppointments.length} appointments`);
 //         }
 //       } else {
 //         throw new Error(response.data.error || "Failed to fetch appointments");
 //       }
 //     } catch (error) {
 //       console.error("❌ Error fetching appointments:", error);
+      
+//       // Handle authentication errors
+//       if (error.response?.status === 401) {
+//         setError("Session expired. Please login again.");
+//         // Clear invalid user data
+//         localStorage.removeItem('token');
+//         localStorage.removeItem('currentUserId');
+//         localStorage.removeItem('userId');
+//         localStorage.removeItem('user');
+//         localStorage.removeItem('userName');
+//         setTimeout(() => navigate("/login"), 2000);
+//         return;
+//       }
+      
 //       setError(
 //         error.response?.data?.error ||
 //         error.message ||
@@ -78,8 +147,13 @@
       
 //       console.log(`🗑️ Cancelling appointment ${appointmentId} with reason: ${reason}`);
       
-//       const userId = localStorage.getItem("userId");
+//       const userId = loggedInUserId; // Use the corrected user ID
+//       const token = localStorage.getItem('token');
       
+//       if (!token) {
+//         throw new Error("No authentication token found");
+//       }
+
 //       const cancelData = {
 //         userId: userId,
 //         cancellationReason: reason
@@ -92,7 +166,7 @@
 //           timeout: 10000,
 //           headers: {
 //             'Content-Type': 'application/json',
-//             'Authorization': `Bearer ${localStorage.getItem('token')}`
+//             'Authorization': `Bearer ${token}`
 //           }
 //         }
 //       );
@@ -375,6 +449,17 @@
 //     );
 //   };
 
+//   // Debug info - remove in production
+//   useEffect(() => {
+//     console.log("=== LOCALSTORAGE DEBUG INFO ===");
+//     console.log("currentUserId:", localStorage.getItem('currentUserId'));
+//     console.log("userId:", localStorage.getItem('userId'));
+//     console.log("user:", localStorage.getItem('user'));
+//     console.log("userName:", localStorage.getItem('userName'));
+//     console.log("token:", localStorage.getItem('token'));
+//     console.log("=================================");
+//   }, []);
+
 //   if (!loggedInUserId) {
 //     return (
 //       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8">
@@ -436,6 +521,12 @@
 //                   className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition duration-200 block w-full"
 //                 >
 //                   Book New Appointment
+//                 </button>
+//                 <button
+//                   onClick={() => navigate("/login")}
+//                   className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition duration-200 block w-full"
+//                 >
+//                   Login Again
 //                 </button>
 //               </div>
 //             </div>
@@ -715,7 +806,6 @@
 //         </div>
 //       </div>
 
-
 //       {/* Cancel Confirmation Modal */}
 //       <CancelModal />
 //     </div>
@@ -759,6 +849,7 @@ const MyAppointments = () => {
   const [cancelReason, setCancelReason] = useState("");
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [alert, setAlert] = useState({ show: false, type: "", message: "" });
+  const [unreadCounts, setUnreadCounts] = useState({}); // Track unread messages per appointment
 
   // ✅ CORRECTED: Get logged in user ID from localStorage - Multiple fallbacks
   const getCurrentUserInfo = () => {
@@ -820,6 +911,27 @@ const MyAppointments = () => {
     filterAppointments();
   }, [appointments, filter]);
 
+  // Fetch unread message counts for all appointments
+  const fetchUnreadCounts = async () => {
+    if (!loggedInUserId) return;
+
+    try {
+      const response = await axios.get(
+        `http://localhost:5000/api/chat/unread/${loggedInUserId}/patient`
+      );
+      
+      if (response.data.success) {
+        const counts = {};
+        response.data.chats?.forEach(chat => {
+          counts[chat.appointmentId] = chat.unreadCount;
+        });
+        setUnreadCounts(counts);
+      }
+    } catch (error) {
+      console.error('Error fetching unread counts:', error);
+    }
+  };
+
   const fetchAppointments = async () => {
     try {
       setIsLoading(true);
@@ -847,6 +959,9 @@ const MyAppointments = () => {
       if (response.data.success) {
         const userAppointments = response.data.appointments || [];
         setAppointments(userAppointments);
+        
+        // Fetch unread counts after appointments are loaded
+        await fetchUnreadCounts();
         
         if (userAppointments.length === 0) {
           console.log("ℹ️ No appointments found for this user");
@@ -964,6 +1079,26 @@ const MyAppointments = () => {
     }
   };
 
+  // Navigate to chat with doctor
+  const navigateToChat = (appointment) => {
+    if (!appointment?._id) {
+      showAlert("error", "Cannot open chat: Invalid appointment");
+      return;
+    }
+
+    // Check if appointment is active (not cancelled)
+    if (appointment.status === "cancelled") {
+      showAlert("error", "Cannot chat for cancelled appointments");
+      return;
+    }
+
+    if (appointment.status === "completed") {
+      showAlert("info", "This appointment is completed. Chat may not be available.");
+    }
+
+    navigate(`/chat/${appointment._id}`);
+  };
+
   // CANCEL MODAL HANDLERS
   const openCancelModal = (appointment) => {
     // Basic validation
@@ -1072,6 +1207,27 @@ const MyAppointments = () => {
     
     // Allow cancellation only for future appointments
     return appointmentDate > now;
+  };
+
+  // Check if appointment can use chat
+  const canUseChat = (appointment) => {
+    if (!appointment?._id) return false;
+    
+    // Don't show chat for cancelled appointments
+    if (appointment.status === "cancelled") return false;
+    
+    // For past appointments, allow chat only if recently completed
+    if (appointment.status === "completed") {
+      const appointmentDate = new Date(appointment.appointmentDate);
+      const now = new Date();
+      const daysSinceAppointment = (now - appointmentDate) / (1000 * 60 * 60 * 24);
+      
+      // Allow chat for appointments completed within last 7 days
+      return daysSinceAppointment <= 7;
+    }
+    
+    // For upcoming/pending/confirmed appointments
+    return true;
   };
 
   const getStatusBadge = (status) => {
@@ -1321,6 +1477,9 @@ const MyAppointments = () => {
           <p className="text-lg text-gray-600">
             Welcome back, {loggedInUserName}! Manage your medical appointments
           </p>
+          <p className="text-sm text-gray-500 mt-2">
+            Chat with your doctor directly from your appointments
+          </p>
         </div>
 
         {/* Stats Cards */}
@@ -1501,6 +1660,24 @@ const MyAppointments = () => {
                         View Details
                       </button>
                       
+                      {/* Chat with Doctor Button */}
+                      {canUseChat(appointment) && (
+                        <button
+                          onClick={() => navigateToChat(appointment)}
+                          className="relative px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition duration-200 font-medium flex items-center justify-center"
+                        >
+                          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                          </svg>
+                          Chat with Doctor
+                          {unreadCounts[appointment._id] > 0 && (
+                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                              {unreadCounts[appointment._id] > 9 ? '9+' : unreadCounts[appointment._id]}
+                            </span>
+                          )}
+                        </button>
+                      )}
+                      
                       {/* Cancel Button - Only show for upcoming appointments that can be cancelled */}
                       {canCancelAppointment(appointment) && (
                         <button
@@ -1529,12 +1706,60 @@ const MyAppointments = () => {
                           Cannot Cancel
                         </button>
                       )}
+
+                      {/* Chat not available message */}
+                      {!canUseChat(appointment) && appointment.status !== "cancelled" && (
+                        <button
+                          disabled
+                          className="px-4 py-2 bg-gray-400 text-white rounded-lg cursor-not-allowed text-sm"
+                          title={appointment.status === "completed" ? 
+                            "Chat only available for appointments within 7 days of completion" : 
+                            "Chat not available"}
+                        >
+                          Chat Unavailable
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
               ))}
             </div>
           )}
+        </div>
+
+        {/* Additional Info Box */}
+        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-6">
+          <div className="flex items-start">
+            <div className="flex-shrink-0 bg-blue-100 p-3 rounded-lg">
+              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <h4 className="text-lg font-semibold text-gray-900">About Chat Feature</h4>
+              <ul className="mt-2 space-y-2 text-sm text-gray-600">
+                <li className="flex items-start">
+                  <span className="text-green-500 mr-2">✓</span>
+                  Chat with your doctor about your medical concerns
+                </li>
+                <li className="flex items-start">
+                  <span className="text-green-500 mr-2">✓</span>
+                  Ask questions about medications and treatment plans
+                </li>
+                <li className="flex items-start">
+                  <span className="text-green-500 mr-2">✓</span>
+                  Share documents and reports securely
+                </li>
+                <li className="flex items-start">
+                  <span className="text-green-500 mr-2">✓</span>
+                  Real-time messaging with automatic updates
+                </li>
+                <li className="text-xs text-gray-500 mt-2">
+                  Note: Chat is available for active appointments and recently completed appointments (within 7 days)
+                </li>
+              </ul>
+            </div>
+          </div>
         </div>
 
         {/* Refresh Button */}
