@@ -24,10 +24,17 @@ app.use("/api/users", require("./routes/authRoutes"));  // User-related routes
 app.use("/api/doctors", require("./routes/doctorRoutes"));  // Doctor-related routes
 
 
+
+app.use("/api/chatbot",require("./routes/chatbotRoutes")); // Chatbot routes
+
+
+
+
 app.use("/api/chat", require("./routes/chatRoutes")); // Chat routes
 
+app.use("/api/feedbacks", require("./routes/feedbackRoutes")); // Feedback routes
 
-
+app.use("/api/admin", require("./routes/adminRoutes")); // Admin routes
 
 
 // backend/api/doctors/{doctorId}/time-slots
@@ -68,3 +75,11 @@ app.listen(PORT, () => {
 
 
 
+
+
+// Add these to your main server file
+const emailRoutes = require('./routes/emailRoutes');
+
+// ... other middleware ...
+
+app.use('/api/email', emailRoutes);

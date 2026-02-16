@@ -1,3 +1,9 @@
+
+
+
+
+
+
 // import { useState, useEffect } from "react";
 // import axios from "axios";
 // import { Link } from "react-router-dom";
@@ -10,6 +16,7 @@
 //   const [searchTerm, setSearchTerm] = useState("");
 //   const [selectedSpecialization, setSelectedSpecialization] = useState("");
 //   const [selectedDepartment, setSelectedDepartment] = useState("");
+//   const [selectedConsultationType, setSelectedConsultationType] = useState(""); // New filter
 //   const [currentPage, setCurrentPage] = useState(1);
 //   const [doctorsPerPage] = useState(8);
 
@@ -60,19 +67,36 @@
 //       );
 //     }
 
+//     if (selectedConsultationType) {
+//       results = results.filter((doctor) => {
+//         // Check if doctor has available time slots of the selected consultation type
+//         return doctor.availableTimeSlots?.some(
+//           (slot) => slot.consultationType === selectedConsultationType
+//         );
+//       });
+//     }
+
 //     setFilteredDoctors(results);
 //     setCurrentPage(1); // Reset to first page when filters change
-//   }, [searchTerm, selectedSpecialization, selectedDepartment, doctors]);
+//   }, [searchTerm, selectedSpecialization, selectedDepartment, selectedConsultationType, doctors]);
 
-//   // Get unique specializations and departments for filters
+//   // Get unique specializations, departments, and consultation types for filters
 //   const specializations = [...new Set(doctors.map(doc => doc.specialization).filter(Boolean))];
 //   const departments = [...new Set(doctors.map(doc => doc.department).filter(Boolean))];
+  
+//   // Get available consultation types from doctors' time slots
+//   const consultationTypes = [...new Set(
+//     doctors.flatMap(doctor => 
+//       doctor.availableTimeSlots?.map(slot => slot.consultationType) || []
+//     )
+//   )].filter(Boolean);
 
 //   // Reset all filters
 //   const resetFilters = () => {
 //     setSearchTerm("");
 //     setSelectedSpecialization("");
 //     setSelectedDepartment("");
+//     setSelectedConsultationType("");
 //   };
 
 //   // Calculate paginated results
@@ -93,6 +117,17 @@
 //       style: 'currency',
 //       currency: 'USD'
 //     }).format(price);
+//   };
+
+//   // Get consultation type availability for a doctor
+//   const getConsultationTypes = (doctor) => {
+//     const types = new Set();
+//     doctor.availableTimeSlots?.forEach(slot => {
+//       if (slot.consultationType) {
+//         types.add(slot.consultationType);
+//       }
+//     });
+//     return Array.from(types);
 //   };
 
 //   if (isLoading) {
@@ -143,7 +178,7 @@
 
 //         {/* Search and Filters */}
 //         <div className="bg-white rounded-2xl shadow-xl p-6 mb-8 border border-gray-100">
-//           <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+//           <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
 //             {/* Search Input */}
 //             <div className="lg:col-span-2">
 //               <label htmlFor="search" className="block text-sm font-semibold text-gray-700 mb-2">
@@ -205,6 +240,26 @@
 //                 ))}
 //               </select>
 //             </div>
+
+//             {/* Consultation Type Filter */}
+//             <div>
+//               <label htmlFor="consultationType" className="block text-sm font-semibold text-gray-700 mb-2">
+//                 Consultation Type
+//               </label>
+//               <select
+//                 id="consultationType"
+//                 value={selectedConsultationType}
+//                 onChange={(e) => setSelectedConsultationType(e.target.value)}
+//                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+//               >
+//                 <option value="">All Types</option>
+//                 {consultationTypes.map((type) => (
+//                   <option key={type} value={type}>
+//                     {type === 'physical' ? '🏥 Physical' : '💻 Online'}
+//                   </option>
+//                 ))}
+//               </select>
+//             </div>
 //           </div>
 
 //           {/* Filter Results and Reset */}
@@ -213,7 +268,7 @@
 //               Showing <span className="text-blue-600 font-bold">{currentDoctors.length}</span> of{" "}
 //               <span className="text-blue-600 font-bold">{filteredDoctors.length}</span> doctors
 //             </p>
-//             {(searchTerm || selectedSpecialization || selectedDepartment) && (
+//             {(searchTerm || selectedSpecialization || selectedDepartment || selectedConsultationType) && (
 //               <button
 //                 onClick={resetFilters}
 //                 className="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-semibold transition-colors duration-200"
@@ -246,7 +301,12 @@
 //           <>
 //             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
 //               {currentDoctors.map((doctor) => (
-//                 <DoctorCard key={doctor._id} doctor={doctor} formatPrice={formatPrice} />
+//                 <DoctorCard 
+//                   key={doctor._id} 
+//                   doctor={doctor} 
+//                   formatPrice={formatPrice}
+//                   getConsultationTypes={getConsultationTypes}
+//                 />
 //               ))}
 //             </div>
 
@@ -293,9 +353,18 @@
 //   );
 // };
 
-// // Enhanced Doctor Card Component with Price
-// const DoctorCard = ({ doctor, formatPrice }) => {
+// // Enhanced Doctor Card Component with Consultation Types
+// const DoctorCard = ({ doctor, formatPrice, getConsultationTypes }) => {
 //   const [imageError, setImageError] = useState(false);
+//   const consultationTypes = getConsultationTypes(doctor);
+
+//   const getConsultationTypeColor = (type) => {
+//     const colors = {
+//       physical: "bg-orange-100 text-orange-800 border-orange-200",
+//       online: "bg-cyan-100 text-cyan-800 border-cyan-200"
+//     };
+//     return colors[type] || "bg-gray-100 text-gray-800 border-gray-200";
+//   };
 
 //   return (
 //     <div className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden group hover:transform hover:-translate-y-2">
@@ -343,6 +412,23 @@
 //           </svg>
 //           {doctor.department || "Medical Department"}
 //         </p>
+
+//         {/* Consultation Type Availability */}
+//         {consultationTypes.length > 0 && (
+//           <div className="mb-3">
+//             <p className="text-sm font-semibold text-gray-700 mb-2">Available for:</p>
+//             <div className="flex flex-wrap gap-2">
+//               {consultationTypes.map((type) => (
+//                 <span
+//                   key={type}
+//                   className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getConsultationTypeColor(type)}`}
+//                 >
+//                   {type === 'physical' ? '🏥 Physical' : '💻 Online'}
+//                 </span>
+//               ))}
+//             </div>
+//           </div>
+//         )}
 
 //         {/* Price Display */}
 //         <div className="mb-4 p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
@@ -405,16 +491,15 @@
 
 
 
-//////////////////////////
 
 
 
 
-
-
+// src/pages/DoctorList.jsx
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
+import { FaStar, FaStarHalfAlt, FaRegStar, FaComment, FaUsers, FaAward } from "react-icons/fa";
 
 const DoctorList = () => {
   const [doctors, setDoctors] = useState([]);
@@ -424,11 +509,13 @@ const DoctorList = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSpecialization, setSelectedSpecialization] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("");
-  const [selectedConsultationType, setSelectedConsultationType] = useState(""); // New filter
+  const [selectedConsultationType, setSelectedConsultationType] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [doctorsPerPage] = useState(8);
+  
+  const [doctorFeedbacks, setDoctorFeedbacks] = useState({});
+  const [isLoadingFeedbacks, setIsLoadingFeedbacks] = useState(true);
 
-  // Fetch all doctors
   useEffect(() => {
     const fetchDoctors = async () => {
       try {
@@ -437,6 +524,8 @@ const DoctorList = () => {
         const res = await axios.get("http://localhost:5000/api/doctors");
         setDoctors(res.data);
         setFilteredDoctors(res.data);
+        
+        await fetchDoctorsFeedback(res.data);
       } catch (error) {
         console.error("Error fetching doctors:", error);
         setError("Failed to load doctors. Please try again later.");
@@ -448,7 +537,71 @@ const DoctorList = () => {
     fetchDoctors();
   }, []);
 
-  // Filter doctors based on search and filters
+  const fetchDoctorsFeedback = async (doctorsList) => {
+    try {
+      setIsLoadingFeedbacks(true);
+      const feedbackMap = {};
+      
+      const feedbackPromises = doctorsList.map(async (doctor) => {
+        try {
+          const response = await axios.get(
+            `http://localhost:5000/api/feedbacks/doctor/${doctor._id}`
+          );
+          
+          if (response.data.success) {
+            const feedbacks = response.data.feedbacks || [];
+            
+            if (feedbacks.length > 0) {
+              const totalRating = feedbacks.reduce((sum, fb) => sum + fb.rating, 0);
+              const averageRating = totalRating / feedbacks.length;
+              
+              const ratingCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+              feedbacks.forEach(fb => {
+                ratingCounts[fb.rating]++;
+              });
+              
+              const latestReviews = feedbacks
+                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                .slice(0, 2);
+              
+              feedbackMap[doctor._id] = {
+                averageRating: parseFloat(averageRating.toFixed(1)),
+                totalReviews: feedbacks.length,
+                ratingCounts,
+                latestReviews,
+                feedbacks
+              };
+            } else {
+              feedbackMap[doctor._id] = {
+                averageRating: 0,
+                totalReviews: 0,
+                ratingCounts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+                latestReviews: [],
+                feedbacks: []
+              };
+            }
+          }
+        } catch (error) {
+          console.error(`Error fetching feedback for doctor ${doctor._id}:`, error);
+          feedbackMap[doctor._id] = {
+            averageRating: 0,
+            totalReviews: 0,
+            ratingCounts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+            latestReviews: [],
+            feedbacks: []
+          };
+        }
+      });
+      
+      await Promise.all(feedbackPromises);
+      setDoctorFeedbacks(feedbackMap);
+    } catch (error) {
+      console.error("Error fetching doctors feedback:", error);
+    } finally {
+      setIsLoadingFeedbacks(false);
+    }
+  };
+
   useEffect(() => {
     let results = doctors;
 
@@ -477,7 +630,6 @@ const DoctorList = () => {
 
     if (selectedConsultationType) {
       results = results.filter((doctor) => {
-        // Check if doctor has available time slots of the selected consultation type
         return doctor.availableTimeSlots?.some(
           (slot) => slot.consultationType === selectedConsultationType
         );
@@ -485,21 +637,18 @@ const DoctorList = () => {
     }
 
     setFilteredDoctors(results);
-    setCurrentPage(1); // Reset to first page when filters change
+    setCurrentPage(1);
   }, [searchTerm, selectedSpecialization, selectedDepartment, selectedConsultationType, doctors]);
 
-  // Get unique specializations, departments, and consultation types for filters
   const specializations = [...new Set(doctors.map(doc => doc.specialization).filter(Boolean))];
   const departments = [...new Set(doctors.map(doc => doc.department).filter(Boolean))];
   
-  // Get available consultation types from doctors' time slots
   const consultationTypes = [...new Set(
     doctors.flatMap(doctor => 
       doctor.availableTimeSlots?.map(slot => slot.consultationType) || []
     )
   )].filter(Boolean);
 
-  // Reset all filters
   const resetFilters = () => {
     setSearchTerm("");
     setSelectedSpecialization("");
@@ -507,18 +656,14 @@ const DoctorList = () => {
     setSelectedConsultationType("");
   };
 
-  // Calculate paginated results
   const indexOfLastDoctor = currentPage * doctorsPerPage;
   const indexOfFirstDoctor = indexOfLastDoctor - doctorsPerPage;
   const currentDoctors = filteredDoctors.slice(indexOfFirstDoctor, indexOfLastDoctor);
 
-  // Handle page change
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
-  // Total pages
   const totalPages = Math.ceil(filteredDoctors.length / doctorsPerPage);
 
-  // Format price for display
   const formatPrice = (price) => {
     if (price === null || price === undefined || price === '') return "Free";
     return new Intl.NumberFormat('en-US', {
@@ -527,7 +672,6 @@ const DoctorList = () => {
     }).format(price);
   };
 
-  // Get consultation type availability for a doctor
   const getConsultationTypes = (doctor) => {
     const types = new Set();
     doctor.availableTimeSlots?.forEach(slot => {
@@ -536,6 +680,24 @@ const DoctorList = () => {
       }
     });
     return Array.from(types);
+  };
+
+  const renderStars = (rating) => {
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
+    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+    
+    return (
+      <div className="flex items-center">
+        {[...Array(fullStars)].map((_, i) => (
+          <FaStar key={`full-${i}`} className="w-4 h-4 text-yellow-400 fill-current" />
+        ))}
+        {hasHalfStar && <FaStarHalfAlt className="w-4 h-4 text-yellow-400" />}
+        {[...Array(emptyStars)].map((_, i) => (
+          <FaRegStar key={`empty-${i}`} className="w-4 h-4 text-yellow-400" />
+        ))}
+      </div>
+    );
   };
 
   if (isLoading) {
@@ -574,7 +736,6 @@ const DoctorList = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
             Our Medical Team
@@ -582,12 +743,26 @@ const DoctorList = () => {
           <p className="text-gray-600 text-lg md:text-xl max-w-3xl mx-auto leading-relaxed">
             Meet our team of experienced healthcare professionals dedicated to your well-being
           </p>
+          <div className="mt-6 flex flex-wrap justify-center gap-4">
+            <div className="flex items-center bg-white px-4 py-2 rounded-full shadow-sm">
+              <FaUsers className="text-blue-500 mr-2" />
+              <span className="text-sm font-medium">{doctors.length} Doctors</span>
+            </div>
+            <div className="flex items-center bg-white px-4 py-2 rounded-full shadow-sm">
+              <FaComment className="text-green-500 mr-2" />
+              <span className="text-sm font-medium">
+                {Object.values(doctorFeedbacks).reduce((sum, fb) => sum + fb.totalReviews, 0)} Reviews
+              </span>
+            </div>
+            <div className="flex items-center bg-white px-4 py-2 rounded-full shadow-sm">
+              <FaAward className="text-yellow-500 mr-2" />
+              <span className="text-sm font-medium">Verified Professionals</span>
+            </div>
+          </div>
         </div>
 
-        {/* Search and Filters */}
         <div className="bg-white rounded-2xl shadow-xl p-6 mb-8 border border-gray-100">
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-            {/* Search Input */}
             <div className="lg:col-span-2">
               <label htmlFor="search" className="block text-sm font-semibold text-gray-700 mb-2">
                 Search Doctors
@@ -609,7 +784,6 @@ const DoctorList = () => {
               </div>
             </div>
 
-            {/* Specialization Filter */}
             <div>
               <label htmlFor="specialization" className="block text-sm font-semibold text-gray-700 mb-2">
                 Specialization
@@ -629,7 +803,6 @@ const DoctorList = () => {
               </select>
             </div>
 
-            {/* Department Filter */}
             <div>
               <label htmlFor="department" className="block text-sm font-semibold text-gray-700 mb-2">
                 Department
@@ -649,7 +822,6 @@ const DoctorList = () => {
               </select>
             </div>
 
-            {/* Consultation Type Filter */}
             <div>
               <label htmlFor="consultationType" className="block text-sm font-semibold text-gray-700 mb-2">
                 Consultation Type
@@ -670,7 +842,6 @@ const DoctorList = () => {
             </div>
           </div>
 
-          {/* Filter Results and Reset */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-6 gap-3">
             <p className="text-gray-600 font-medium">
               Showing <span className="text-blue-600 font-bold">{currentDoctors.length}</span> of{" "}
@@ -690,7 +861,6 @@ const DoctorList = () => {
           </div>
         </div>
 
-        {/* Doctors Grid */}
         {currentDoctors.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-2xl shadow-lg">
             <div className="text-gray-400 text-8xl mb-6">🔍</div>
@@ -714,11 +884,13 @@ const DoctorList = () => {
                   doctor={doctor} 
                   formatPrice={formatPrice}
                   getConsultationTypes={getConsultationTypes}
+                  feedbackStats={doctorFeedbacks[doctor._id]}
+                  isLoadingFeedbacks={isLoadingFeedbacks}
+                  renderStars={renderStars}
                 />
               ))}
             </div>
 
-            {/* Pagination Controls */}
             {filteredDoctors.length > doctorsPerPage && (
               <div className="flex justify-center mt-12">
                 <nav className="flex items-center space-x-2">
@@ -761,8 +933,14 @@ const DoctorList = () => {
   );
 };
 
-// Enhanced Doctor Card Component with Consultation Types
-const DoctorCard = ({ doctor, formatPrice, getConsultationTypes }) => {
+const DoctorCard = ({ 
+  doctor, 
+  formatPrice, 
+  getConsultationTypes, 
+  feedbackStats, 
+  isLoadingFeedbacks,
+  renderStars 
+}) => {
   const [imageError, setImageError] = useState(false);
   const consultationTypes = getConsultationTypes(doctor);
 
@@ -774,9 +952,10 @@ const DoctorCard = ({ doctor, formatPrice, getConsultationTypes }) => {
     return colors[type] || "bg-gray-100 text-gray-800 border-gray-200";
   };
 
+  const hasFeedback = feedbackStats && feedbackStats.totalReviews > 0;
+  
   return (
     <div className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden group hover:transform hover:-translate-y-2">
-      {/* Profile Image */}
       <div className="relative h-48 bg-gradient-to-br from-blue-100 to-indigo-100 overflow-hidden">
         {doctor.profilePicture && !imageError ? (
           <img
@@ -793,22 +972,28 @@ const DoctorCard = ({ doctor, formatPrice, getConsultationTypes }) => {
           </div>
         )}
         
-        {/* Specialization Badge */}
         <div className="absolute top-4 left-4">
           <span className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-3 py-1 rounded-full text-xs font-semibold shadow-md">
             {doctor.specialization || "General"}
           </span>
         </div>
 
-        {/* Price Badge */}
-        <div className="absolute top-4 right-4">
+        {hasFeedback && (
+          <div className="absolute top-4 right-4 flex items-center bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full">
+            <FaStar className="w-3 h-3 text-yellow-400 fill-current mr-1" />
+            <span className="text-xs font-bold text-gray-900">
+              {feedbackStats.averageRating.toFixed(1)}
+            </span>
+          </div>
+        )}
+
+        <div className="absolute bottom-4 right-4">
           <span className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-md">
             {formatPrice(doctor.price)}
           </span>
         </div>
       </div>
 
-      {/* Doctor Information */}
       <div className="p-6">
         <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors duration-200">
           Dr. {doctor.firstName} {doctor.lastName}
@@ -821,7 +1006,37 @@ const DoctorCard = ({ doctor, formatPrice, getConsultationTypes }) => {
           {doctor.department || "Medical Department"}
         </p>
 
-        {/* Consultation Type Availability */}
+        {isLoadingFeedbacks ? (
+          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+            <div className="animate-pulse flex items-center">
+              <div className="h-4 bg-gray-200 rounded w-24 mr-2"></div>
+              <div className="h-4 bg-gray-200 rounded w-16"></div>
+            </div>
+          </div>
+        ) : hasFeedback ? (
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center">
+                <div className="flex items-center mr-2">
+                  {renderStars(feedbackStats.averageRating)}
+                  <span className="ml-2 text-sm font-bold text-gray-900">
+                    {feedbackStats.averageRating.toFixed(1)}
+                  </span>
+                </div>
+                <span className="text-xs text-gray-500">
+                  ({feedbackStats.totalReviews} review{feedbackStats.totalReviews !== 1 ? 's' : ''})
+                </span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+            <p className="text-xs text-gray-500 italic">
+              No reviews yet. Be the first to share your experience!
+            </p>
+          </div>
+        )}
+
         {consultationTypes.length > 0 && (
           <div className="mb-3">
             <p className="text-sm font-semibold text-gray-700 mb-2">Available for:</p>
@@ -838,7 +1053,6 @@ const DoctorCard = ({ doctor, formatPrice, getConsultationTypes }) => {
           </div>
         )}
 
-        {/* Price Display */}
         <div className="mb-4 p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
           <div className="flex items-center justify-between">
             <span className="text-sm font-semibold text-gray-700">Consultation Fee:</span>
@@ -878,7 +1092,6 @@ const DoctorCard = ({ doctor, formatPrice, getConsultationTypes }) => {
           )}
         </div>
 
-        {/* View Details Button */}
         <Link
           to={`/doctordetails/${doctor._id}`}
           className="block w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-center py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 transform group-hover:scale-105 shadow-md hover:shadow-lg"

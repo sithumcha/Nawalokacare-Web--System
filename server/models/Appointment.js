@@ -408,7 +408,14 @@ const appointmentSchema = new mongoose.Schema(
     appointmentNumber: {
       type: String,
       unique: true
-    }
+    },
+
+
+      hasFeedback: {
+    type: Boolean,
+    default: false
+  }
+
   },
   { timestamps: true }
 );

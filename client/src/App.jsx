@@ -26,7 +26,15 @@ import AppointmentsManagement from "./admin/AppointmentsManagement";
 import PaymentPage from "./pages/PaymentPage";
 import Chat from "./pages/PatientChat"
 import DoctorChat from "./Doctor/DoctorChat";
+import MedicationsPage from "./pages/MedicationsPage";
+import ServicesPage from "./components/ServicesPage";
+import Doctor from "./Doctor/DoctorFeedbackView"; 
 
+import AdminLogin  from "./admin/AdminLogin";
+import AdminRegister from "./admin/AdminRegister";
+import AdminDashboard from "./admin/DashboardPage";
+import DoctorsAppointmentsPage from "./admin/DoctorsAppointmentsPage";
+import Chatbot from "./pages/Chatbot";
 
 
 
@@ -68,6 +76,16 @@ const App = () => {
         <Route path="/book/:id/payment" element={<PaymentPage />} />
         <Route path="/chat/:appointmentId" element={<Chat />} />
         <Route path="/doctor/chat/:appointmentId" element={<DoctorChat />} />
+        <Route path="/medications" element={<MedicationsPage />} />
+        <Route path="/services" element={<ServicesPage />} /> 
+        <Route path="/doctor/feedbacks/:doctorId" element={<Doctor />} />
+
+
+         <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin/register" element={<AdminRegister />} />
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/admin/appointments" element={<DoctorsAppointmentsPage />} />
+          <Route path="/chatbot" element={<Chatbot />} />
 
 
 

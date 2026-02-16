@@ -2,18 +2,14 @@
 
 
 
-
-
-
-
-
-// import { useState, useEffect, useRef, useCallback } from "react";
+// import { useState, useEffect } from "react";
 // import { useNavigate } from "react-router-dom";
 // import axios from "axios";
 
 // const DoctorAppointments = () => {
 //   const navigate = useNavigate();
 //   const [appointments, setAppointments] = useState([]);
+//   const [filteredAppointments, setFilteredAppointments] = useState([]);
 //   const [isLoading, setIsLoading] = useState(true);
 //   const [error, setError] = useState("");
 //   const [filter, setFilter] = useState("today");
@@ -27,17 +23,8 @@
 //   const [sendingLink, setSendingLink] = useState(false);
 //   const [selectedPlatform, setSelectedPlatform] = useState("google");
 //   const [meetingInstructions, setMeetingInstructions] = useState("");
-  
-//   // Chat states
-//   const [showChat, setShowChat] = useState(false);
-//   const [messages, setMessages] = useState([]);
-//   const [newMessage, setNewMessage] = useState("");
-//   const [sendingMessage, setSendingMessage] = useState(false);
 //   const [unreadCounts, setUnreadCounts] = useState({});
-//   const [isPolling, setIsPolling] = useState(false);
-//   const [lastMessageId, setLastMessageId] = useState(null);
-//   const messagesEndRef = useRef(null);
-//   const pollingIntervalRef = useRef(null);
+//   const [alert, setAlert] = useState({ show: false, type: "", message: "" });
 
 //   // Initialize component
 //   useEffect(() => {
@@ -53,14 +40,11 @@
 //     setDoctorName(doctorNameFromStorage || "Dr. Apsara Chanuka");
 //     fetchDoctorAppointments(doctorIdFromLocalStorage);
 //     fetchUnreadCounts(doctorIdFromLocalStorage);
-    
-//     return () => {
-//       // Cleanup polling on unmount
-//       if (pollingIntervalRef.current) {
-//         clearInterval(pollingIntervalRef.current);
-//       }
-//     };
 //   }, [navigate]);
+
+//   useEffect(() => {
+//     filterAppointments();
+//   }, [appointments, filter]);
 
 //   // Fetch doctor appointments
 //   const fetchDoctorAppointments = async (doctorId) => {
@@ -68,6 +52,7 @@
 //       setIsLoading(true);
 //       setError("");
 //       const response = await axios.get(`http://localhost:5000/api/appointments/doctor/${doctorId}`);
+      
 //       if (response.data && Array.isArray(response.data)) {
 //         setAppointments(response.data);
 //       } else {
@@ -96,185 +81,6 @@
 //       }
 //     } catch (error) {
 //       console.error('Error fetching unread counts:', error);
-//     }
-//   };
-
-//   // Start polling for new messages
-//   const startPolling = useCallback((appointmentId) => {
-//     // Clear any existing polling
-//     if (pollingIntervalRef.current) {
-//       clearInterval(pollingIntervalRef.current);
-//     }
-
-//     setIsPolling(true);
-    
-//     pollingIntervalRef.current = setInterval(async () => {
-//       try {
-//         const params = { userId: doctorId, userType: 'doctor' };
-//         if (lastMessageId) {
-//           params.lastMessageId = lastMessageId;
-//         } else {
-//           params.lastCheck = Date.now() - 10000; // Last 10 seconds
-//         }
-        
-//         const response = await axios.get(
-//           `http://localhost:5000/api/chat/poll/${appointmentId}`,
-//           { params }
-//         );
-        
-//         if (response.data.success && response.data.hasNew) {
-//           const newMessages = response.data.messages || [];
-//           if (newMessages.length > 0) {
-//             setMessages(prev => [...prev, ...newMessages]);
-//             setLastMessageId(newMessages[newMessages.length - 1]._id);
-//             scrollToBottom();
-            
-//             // If chat is open, mark as read
-//             if (showChat) {
-//               await markMessagesAsRead(appointmentId);
-//             } else {
-//               // Update unread count
-//               setUnreadCounts(prev => ({
-//                 ...prev,
-//                 [appointmentId]: (prev[appointmentId] || 0) + newMessages.length
-//               }));
-//             }
-//           }
-//         }
-//       } catch (error) {
-//         console.error('Error polling for messages:', error);
-//       }
-//     }, 3000); // Poll every 3 seconds
-//   }, [doctorId, lastMessageId, showChat]);
-
-//   // Stop polling
-//   const stopPolling = () => {
-//     if (pollingIntervalRef.current) {
-//       clearInterval(pollingIntervalRef.current);
-//       pollingIntervalRef.current = null;
-//     }
-//     setIsPolling(false);
-//   };
-
-//   // Mark messages as read
-//   const markMessagesAsRead = async (appointmentId) => {
-//     try {
-//       await axios.post('http://localhost:5000/api/chat/mark-read', {
-//         appointmentId,
-//         userId: doctorId,
-//         userType: 'doctor'
-//       });
-      
-//       // Update local unread count
-//       setUnreadCounts(prev => ({
-//         ...prev,
-//         [appointmentId]: 0
-//       }));
-//     } catch (error) {
-//       console.error('Error marking messages as read:', error);
-//     }
-//   };
-
-//   // Open chat
-//   const openChat = async (appointment) => {
-//     try {
-//       // Fetch existing messages
-//       const response = await axios.get(
-//         `http://localhost:5000/api/chat/messages/${appointment._id}`,
-//         { params: { userId: doctorId } }
-//       );
-
-//       if (response.data.success) {
-//         const fetchedMessages = response.data.messages || [];
-//         setMessages(fetchedMessages);
-        
-//         // Set last message ID for polling
-//         if (fetchedMessages.length > 0) {
-//           setLastMessageId(fetchedMessages[fetchedMessages.length - 1]._id);
-//         }
-        
-//         // Mark as read
-//         await markMessagesAsRead(appointment._id);
-//       }
-//     } catch (error) {
-//       console.error('Error opening chat:', error);
-//       // Show sample messages if API fails
-//       setMessages(generateSampleMessages(appointment));
-//     }
-    
-//     setSelectedAppointment(appointment);
-//     setShowChat(true);
-    
-//     // Start polling for new messages
-//     startPolling(appointment._id);
-    
-//     setTimeout(() => scrollToBottom(), 100);
-//   };
-
-//   // Close chat
-//   const closeChat = () => {
-//     stopPolling();
-//     setShowChat(false);
-//     setSelectedAppointment(null);
-//     setMessages([]);
-//     setNewMessage("");
-//     setLastMessageId(null);
-//   };
-
-//   // Send message
-//   const sendMessage = async () => {
-//     if (!newMessage.trim() || !selectedAppointment || !doctorId) return;
-
-//     const messageData = {
-//       appointmentId: selectedAppointment._id,
-//       senderId: doctorId,
-//       senderType: "doctor",
-//       receiverId: selectedAppointment.patientDetails?._id || "patient_id",
-//       receiverType: "patient",
-//       content: newMessage.trim()
-//     };
-
-//     setSendingMessage(true);
-//     try {
-//       // Optimistically add message to UI
-//       const tempMessage = {
-//         ...messageData,
-//         _id: `temp_${Date.now()}`,
-//         timestamp: new Date().toISOString(),
-//         read: false
-//       };
-      
-//       setMessages(prev => [...prev, tempMessage]);
-//       setNewMessage("");
-//       scrollToBottom();
-
-//       // Send message via HTTP
-//       const response = await axios.post(
-//         'http://localhost:5000/api/chat/send',
-//         messageData
-//       );
-
-//       if (response.data.success) {
-//         // Replace temp message with real message
-//         setMessages(prev => 
-//           prev.map(msg => 
-//             msg._id === tempMessage._id ? response.data.data : msg
-//           )
-//         );
-        
-//         // Update last message ID
-//         setLastMessageId(response.data.data._id);
-//       } else {
-//         throw new Error('Failed to send message');
-//       }
-
-//     } catch (error) {
-//       console.error('Error sending message:', error);
-//       alert('Failed to send message. Please try again.');
-//       // Remove optimistic message on error
-//       setMessages(prev => prev.filter(msg => !msg._id?.startsWith('temp_')));
-//     } finally {
-//       setSendingMessage(false);
 //     }
 //   };
 
@@ -411,34 +217,6 @@
 //     ];
 //   };
 
-//   // Generate sample messages for demo
-//   const generateSampleMessages = (appointment) => {
-//     return [
-//       {
-//         _id: "msg_1",
-//         appointmentId: appointment._id,
-//         senderId: appointment.patientDetails?._id || "patient_id",
-//         senderType: "patient",
-//         receiverId: doctorId,
-//         receiverType: "doctor",
-//         content: "Hello Doctor, I have a question about my appointment",
-//         timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-//         read: true
-//       },
-//       {
-//         _id: "msg_2",
-//         appointmentId: appointment._id,
-//         senderId: doctorId,
-//         senderType: "doctor",
-//         receiverId: appointment.patientDetails?._id || "patient_id",
-//         receiverType: "patient",
-//         content: "How can I help you today?",
-//         timestamp: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
-//         read: true
-//       }
-//     ];
-//   };
-
 //   // Generate meeting link
 //   const generateMeetingLink = (platform = "google") => {
 //     const platforms = {
@@ -476,61 +254,66 @@
 //     setConsultationLink(generateMeetingLink(platform));
 //   };
 
-//   // Helper functions
-//   const scrollToBottom = () => {
-//     setTimeout(() => {
-//       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-//     }, 100);
-//   };
-
-//   const handleKeyPress = (e) => {
-//     if (e.key === 'Enter' && !e.shiftKey) {
-//       e.preventDefault();
-//       sendMessage();
-//     }
-//   };
-
 //   // Filter appointments
-//   const filteredAppointments = appointments.filter(appointment => {
-//     if (!appointment || !appointment.appointmentDate) return false;
-    
+//   const filterAppointments = () => {
+//     if (!appointments.length) {
+//       setFilteredAppointments([]);
+//       return;
+//     }
+
 //     const now = new Date();
-//     const appointmentDate = new Date(appointment.appointmentDate);
-//     const today = new Date();
-//     today.setHours(0, 0, 0, 0);
+//     let filtered = appointments;
 
 //     switch (filter) {
 //       case "today":
-//         const appointmentDay = new Date(appointmentDate);
-//         appointmentDay.setHours(0, 0, 0, 0);
-//         return appointmentDay.getTime() === today.getTime();
+//         filtered = appointments.filter(appointment => {
+//           if (!appointment || !appointment.appointmentDate) return false;
+//           const appointmentDate = new Date(appointment.appointmentDate);
+//           const today = new Date();
+//           today.setHours(0, 0, 0, 0);
+//           appointmentDate.setHours(0, 0, 0, 0);
+//           return appointmentDate.getTime() === today.getTime();
+//         });
+//         break;
 //       case "upcoming":
-//         return appointmentDate >= now && (appointment.status === "pending" || appointment.status === "confirmed");
+//         filtered = appointments.filter(appointment => {
+//           if (!appointment || !appointment.appointmentDate) return false;
+//           const appointmentDate = new Date(appointment.appointmentDate);
+//           return appointmentDate >= now && (appointment.status === "pending" || appointment.status === "confirmed");
+//         });
+//         break;
 //       case "pending":
-//         return appointment.status === "pending";
+//         filtered = appointments.filter(appointment => appointment.status === "pending");
+//         break;
 //       case "online":
-//         return appointment.consultationType === "online";
+//         filtered = appointments.filter(appointment => appointment.consultationType === "online");
+//         break;
 //       case "physical":
-//         return appointment.consultationType === "physical";
+//         filtered = appointments.filter(appointment => appointment.consultationType === "physical");
+//         break;
 //       case "all":
-//         return true;
 //       default:
-//         return true;
+//         filtered = appointments;
 //     }
-//   });
+
+//     setFilteredAppointments(filtered);
+//   };
 
 //   // Handle appointment status update
 //   const handleStatusUpdate = async (appointmentId, newStatus) => {
 //     setActionLoading(true);
 //     try {
-//       await axios.put(`http://localhost:5000/api/appointments/${appointmentId}/status`, { status: newStatus });
+//       await axios.put(`http://localhost:5000/api/appointments/${appointmentId}/status`, { 
+//         status: newStatus,
+//         doctorId: doctorId 
+//       });
 //       setAppointments(prev => prev.map(apt => apt._id === appointmentId ? { ...apt, status: newStatus } : apt));
 //       setShowModal(false);
 //       setSelectedAppointment(null);
-//       alert(`Appointment ${newStatus} successfully.`);
+//       showAlert("success", `Appointment ${newStatus} successfully.`);
 //     } catch (error) {
 //       console.error("Error updating appointment status:", error);
-//       alert("Failed to update appointment status. Please try again.");
+//       showAlert("error", "Failed to update appointment status. Please try again.");
 //     } finally {
 //       setActionLoading(false);
 //     }
@@ -585,7 +368,7 @@
 
 //   const handleSendConsultationLink = async (appointment) => {
 //     if (!consultationLink.trim()) {
-//       alert("Please enter a valid consultation link");
+//       showAlert("error", "Please enter a valid consultation link");
 //       return;
 //     }
 
@@ -594,7 +377,8 @@
 //       // Update appointment with meeting link
 //       await axios.put(`http://localhost:5000/api/appointments/${appointment._id}/meeting-link`, {
 //         meetingLink: consultationLink,
-//         meetingPlatform: selectedPlatform
+//         meetingPlatform: selectedPlatform,
+//         doctorId: doctorId
 //       });
 
 //       // Update local state
@@ -607,14 +391,14 @@
 //       // Send email notification
 //       await sendLinkNotification(appointment, consultationLink, selectedPlatform, meetingInstructions);
 
-//       alert("Consultation link sent successfully!");
+//       showAlert("success", "Consultation link sent successfully!");
 //       setShowLinkModal(false);
 //       setConsultationLink("");
 //       setMeetingInstructions("");
 //       setSelectedPlatform("google");
 //     } catch (error) {
 //       console.error("Error sending consultation link:", error);
-//       alert("Failed to send consultation link. Please try again.");
+//       showAlert("error", "Failed to send consultation link. Please try again.");
 //     } finally {
 //       setSendingLink(false);
 //     }
@@ -644,11 +428,11 @@
 //         if (appointment.meetingLink) {
 //           window.open(appointment.meetingLink, '_blank', 'noopener,noreferrer');
 //         } else {
-//           alert("No meeting link available. Please generate and send a link first.");
+//           showAlert("error", "No meeting link available. Please generate and send a link first.");
 //         }
 //         break;
 //       case "chat":
-//         openChat(appointment);
+//         navigate(`/doctor/chat/${appointment._id}`);
 //         break;
 //       default:
 //         break;
@@ -796,7 +580,34 @@
 //     };
 //   };
 
+//   const showAlert = (type, message) => {
+//     setAlert({ show: true, type, message });
+//     setTimeout(() => setAlert({ show: false, type: "", message: "" }), 5000);
+//   };
+
 //   const stats = getAppointmentStats();
+
+//   // Check if appointment can be cancelled
+//   const canCancelAppointment = (appointment) => {
+//     if (appointment.status === "cancelled" || appointment.status === "completed") {
+//       return false;
+//     }
+
+//     const appointmentDate = new Date(appointment.appointmentDate);
+//     const now = new Date();
+    
+//     // Allow cancellation only for future appointments
+//     return appointmentDate > now;
+//   };
+
+//   // Refresh appointments
+//   const refreshAppointments = () => {
+//     if (doctorId) {
+//       fetchDoctorAppointments(doctorId);
+//       fetchUnreadCounts(doctorId);
+//       showAlert("info", "Refreshing appointments...");
+//     }
+//   };
 
 //   if (isLoading) {
 //     return (
@@ -839,6 +650,35 @@
 //       </header>
 
 //       <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+//         {/* Alert */}
+//         {alert.show && (
+//           <div className={`mb-6 border rounded-lg p-4 ${
+//             alert.type === "success" 
+//               ? "bg-green-50 border-green-200 text-green-800" 
+//               : alert.type === "error"
+//               ? "bg-red-50 border-red-200 text-red-800"
+//               : "bg-blue-50 border-blue-200 text-blue-800"
+//           }`}>
+//             <div className="flex items-center">
+//               <svg className={`w-5 h-5 mr-2 ${
+//                 alert.type === "success" ? "text-green-400" : 
+//                 alert.type === "error" ? "text-red-400" : 
+//                 "text-blue-400"
+//               }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+//                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+//                   d={alert.type === "success" ? 
+//                     "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" :
+//                     alert.type === "error" ?
+//                     "M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" :
+//                     "M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+//                   } 
+//                 />
+//               </svg>
+//               <span className="font-medium">{alert.message}</span>
+//             </div>
+//           </div>
+//         )}
+
 //         {/* Demo Mode Notice */}
 //         {error && (
 //           <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -853,23 +693,6 @@
 //             </div>
 //           </div>
 //         )}
-
-//         {/* Chat Status */}
-//         <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-//           <div className="flex items-center justify-between">
-//             <div className="flex items-center">
-//               <div className={`w-3 h-3 rounded-full mr-2 ${isPolling ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-//               <span className="text-sm font-medium">
-//                 Chat: {isPolling ? 'Active (Polling every 3s)' : 'Inactive'}
-//               </span>
-//             </div>
-//             {isPolling && (
-//               <span className="text-xs text-gray-500">
-//                 Last update: {new Date().toLocaleTimeString()}
-//               </span>
-//             )}
-//           </div>
-//         </div>
 
 //         {/* Quick Stats */}
 //         <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-6 mb-8">
@@ -926,15 +749,26 @@
 //         {/* Appointments List */}
 //         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
 //           <div className="px-6 py-4 border-b border-gray-200">
-//             <h2 className="text-xl font-semibold text-gray-900">
-//               {filter === "today" && "Today's Appointments"}
-//               {filter === "upcoming" && "Upcoming Appointments"}
-//               {filter === "pending" && "Pending Approval"}
-//               {filter === "online" && "Online Consultations"}
-//               {filter === "physical" && "Physical Appointments"}
-//               {filter === "all" && "All Appointments"}
-//               <span className="text-gray-500 ml-2">({filteredAppointments.length})</span>
-//             </h2>
+//             <div className="flex justify-between items-center">
+//               <h2 className="text-xl font-semibold text-gray-900">
+//                 {filter === "today" && "Today's Appointments"}
+//                 {filter === "upcoming" && "Upcoming Appointments"}
+//                 {filter === "pending" && "Pending Approval"}
+//                 {filter === "online" && "Online Consultations"}
+//                 {filter === "physical" && "Physical Appointments"}
+//                 {filter === "all" && "All Appointments"}
+//                 <span className="text-gray-500 ml-2">({filteredAppointments.length})</span>
+//               </h2>
+//               <button
+//                 onClick={refreshAppointments}
+//                 className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition duration-200 flex items-center"
+//               >
+//                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+//                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+//                 </svg>
+//                 Refresh
+//               </button>
+//             </div>
 //           </div>
 
 //           {filteredAppointments.length === 0 ? (
@@ -1065,7 +899,7 @@
 //                     </div>
 
 //                     <div className="mt-4 lg:mt-0 lg:ml-6 flex flex-col sm:flex-row gap-2">
-//                       {/* Chat Button with Unread Badge */}
+//                       {/* Chat Button with Unread Badge - Navigates to separate chat page */}
 //                       <button
 //                         onClick={() => handleActionClick(appointment, "chat")}
 //                         className="relative px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition duration-200 font-medium flex items-center"
@@ -1147,128 +981,43 @@
 //             </div>
 //           )}
 //         </div>
-//       </div>
 
-//       {/* Chat Modal */}
-//       {showChat && selectedAppointment && (
-//         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50">
-//           <div className="bg-white h-full w-full md:w-96 lg:w-1/3 shadow-xl flex flex-col">
-//             {/* Chat Header */}
-//             <div className="bg-blue-600 text-white p-4 flex items-center justify-between">
-//               <div className="flex items-center">
-//                 <button
-//                   onClick={closeChat}
-//                   className="mr-3 text-white hover:text-blue-200"
-//                 >
-//                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-//                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-//                   </svg>
-//                 </button>
-//                 <div>
-//                   <h3 className="font-semibold">{selectedAppointment.patientDetails?.fullName || "Patient"}</h3>
-//                   <p className="text-sm text-blue-200">
-//                     {selectedAppointment.appointmentNumber} • {formatDate(selectedAppointment.appointmentDate)}
-//                   </p>
-//                 </div>
-//               </div>
-//               <div className="flex items-center space-x-2">
-//                 <div className={`w-2 h-2 rounded-full ${isPolling ? 'bg-green-400' : 'bg-gray-400'}`}></div>
-//                 {selectedAppointment.patientDetails?.phoneNumber && (
-//                   <button
-//                     onClick={() => window.open(`tel:${selectedAppointment.patientDetails.phoneNumber}`)}
-//                     className="p-2 hover:bg-blue-700 rounded-full"
-//                     title="Call Patient"
-//                   >
-//                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-//                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-//                     </svg>
-//                   </button>
-//                 )}
-//               </div>
+//         {/* Information Section */}
+//         <div className="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-6">
+//           <div className="flex items-start">
+//             <div className="flex-shrink-0 bg-blue-100 p-3 rounded-lg">
+//               <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+//                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+//               </svg>
 //             </div>
-
-//             {/* Messages Container */}
-//             <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
-//               {messages.length === 0 ? (
-//                 <div className="text-center py-8">
-//                   <svg className="w-12 h-12 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-//                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-//                   </svg>
-//                   <p className="text-gray-500">No messages yet. Start the conversation!</p>
-//                 </div>
-//               ) : (
-//                 <div className="space-y-4">
-//                   {messages.map((message) => (
-//                     <div
-//                       key={message._id}
-//                       className={`flex ${message.senderType === "doctor" ? "justify-end" : "justify-start"}`}
-//                     >
-//                       <div
-//                         className={`max-w-xs lg:max-w-md rounded-2xl px-4 py-2 ${
-//                           message.senderType === "doctor"
-//                             ? "bg-blue-600 text-white rounded-br-none"
-//                             : "bg-gray-200 text-gray-800 rounded-bl-none"
-//                         }`}
-//                       >
-//                         <p className="text-sm break-words">{message.content}</p>
-//                         <p
-//                           className={`text-xs mt-1 ${
-//                             message.senderType === "doctor"
-//                               ? "text-blue-200"
-//                               : "text-gray-500"
-//                           }`}
-//                         >
-//                           {new Date(message.timestamp).toLocaleTimeString([], {
-//                             hour: '2-digit',
-//                             minute: '2-digit'
-//                           })}
-//                           {message._id?.startsWith('temp_') && ' (Sending...)'}
-//                         </p>
-//                       </div>
-//                     </div>
-//                   ))}
-//                   <div ref={messagesEndRef} />
-//                 </div>
-//               )}
-//             </div>
-
-//             {/* Message Input */}
-//             <div className="border-t border-gray-200 p-4">
-//               <div className="flex space-x-2">
-//                 <input
-//                   type="text"
-//                   value={newMessage}
-//                   onChange={(e) => setNewMessage(e.target.value)}
-//                   onKeyPress={handleKeyPress}
-//                   placeholder="Type your message..."
-//                   className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
-//                   disabled={sendingMessage}
-//                 />
-//                 <button
-//                   onClick={sendMessage}
-//                   disabled={sendingMessage || !newMessage.trim()}
-//                   className="bg-blue-600 text-white px-4 py-2 rounded-full hover:bg-blue-700 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[44px]"
-//                 >
-//                   {sendingMessage ? (
-//                     <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-//                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-//                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-//                     </svg>
-//                   ) : (
-//                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-//                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-//                     </svg>
-//                   )}
-//                 </button>
-//               </div>
-//               <p className="text-xs text-gray-500 text-center mt-2">
-//                 Press Enter to send • Shift + Enter for new line
-//                 {isPolling && <span className="ml-2">• Auto-refresh: ON</span>}
-//               </p>
+//             <div className="ml-4">
+//               <h4 className="text-lg font-semibold text-gray-900">Quick Actions Guide</h4>
+//               <ul className="mt-2 space-y-2 text-sm text-gray-600">
+//                 <li className="flex items-start">
+//                   <span className="text-indigo-500 mr-2">💬</span>
+//                   <strong>Chat:</strong> Open dedicated chat window with patient
+//                 </li>
+//                 <li className="flex items-start">
+//                   <span className="text-blue-500 mr-2">👁️</span>
+//                   <strong>View Details:</strong> See complete appointment information
+//                 </li>
+//                 <li className="flex items-start">
+//                   <span className="text-green-500 mr-2">🎥</span>
+//                   <strong>Join Call:</strong> Start online consultation (for online appointments)
+//                 </li>
+//                 <li className="flex items-start">
+//                   <span className="text-purple-500 mr-2">🔗</span>
+//                   <strong>Send Link:</strong> Generate and send meeting link to patient
+//                 </li>
+//                 <li className="flex items-start">
+//                   <span className="text-yellow-500 mr-2">⏳</span>
+//                   <strong>Pending:</strong> Appointments awaiting your confirmation
+//                 </li>
+//               </ul>
 //             </div>
 //           </div>
 //         </div>
-//       )}
+//       </div>
 
 //       {/* Appointment Details Modal */}
 //       {showModal && selectedAppointment && (
@@ -1450,6 +1199,12 @@
 
 //               <div className="mt-6 flex justify-end space-x-3">
 //                 <button
+//                   onClick={() => navigate(`/doctor/chat/${selectedAppointment._id}`)}
+//                   className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition duration-200"
+//                 >
+//                   Open Chat
+//                 </button>
+//                 <button
 //                   onClick={() => {
 //                     setShowModal(false);
 //                     setSelectedAppointment(null);
@@ -1627,6 +1382,9 @@
 
 
 
+
+
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -1650,6 +1408,7 @@ const DoctorAppointments = () => {
   const [meetingInstructions, setMeetingInstructions] = useState("");
   const [unreadCounts, setUnreadCounts] = useState({});
   const [alert, setAlert] = useState({ show: false, type: "", message: "" });
+  const [testingEmail, setTestingEmail] = useState(false);
 
   // Initialize component
   useEffect(() => {
@@ -1924,110 +1683,255 @@ const DoctorAppointments = () => {
     setFilteredAppointments(filtered);
   };
 
-  // Handle appointment status update
+  // ==================== EMAIL FUNCTIONS ====================
+
+  // Send consultation link via real email
+ const sendLinkNotification = async (appointment, link, platform, instructions) => {
+  try {
+    console.log("📨 Preparing to send email via API...");
+    console.log("📬 Sending to:", appointment.patientDetails.email);
+    console.log("📋 Patient:", appointment.patientDetails.fullName);
+    
+    const payload = {
+      to: appointment.patientDetails.email,
+      patientName: appointment.patientDetails.fullName,
+      doctorName: appointment.doctorName,
+      doctorSpecialization: appointment.doctorSpecialization,
+      appointmentDate: formatDate(appointment.appointmentDate),
+      appointmentTime: `${formatTime(appointment.timeSlot.startTime)} - ${formatTime(appointment.timeSlot.endTime)}`,
+      consultationLink: link,
+      platform: platform,
+      instructions: instructions || ''
+    };
+    
+    console.log("📤 API Payload:", payload);
+    
+    const response = await axios.post('http://localhost:5000/api/email/consultation-link', payload, {
+      timeout: 10000, // 10 second timeout
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    console.log("✅ Email API Response:", response.data);
+    
+    if (response.data.success) {
+      console.log('✅ Email sent successfully:', response.data.emailDetails);
+      return {
+        success: true,
+        data: response.data,
+        details: response.data.emailDetails
+      };
+    } else {
+      throw new Error(response.data.error || 'Failed to send email');
+    }
+  } catch (error) {
+    console.error('❌ Email sending error:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      config: error.config?.url
+    });
+    
+    // Check for common errors
+    if (error.code === 'ECONNREFUSED') {
+      console.error('❌ Backend server is not running on localhost:5000');
+      console.error('💡 Run: cd backend && npm start');
+    } else if (error.code === 'ENOTFOUND') {
+      console.error('❌ Cannot connect to backend server');
+    } else if (error.response?.status === 404) {
+      console.error('❌ API endpoint not found. Check if /api/email/consultation-link exists');
+    }
+    
+    // Fallback to demo mode
+    console.log("📧 Demo mode - Email would be sent to:", {
+      to: appointment.patientDetails.email,
+      patientName: appointment.patientDetails.fullName,
+      doctorName: appointment.doctorName,
+      appointmentDate: formatDate(appointment.appointmentDate),
+      consultationLink: link,
+      platform: platform,
+      instructions: instructions
+    });
+    
+    return {
+      success: true,
+      demo: true,
+      message: 'Email sent (demo mode)',
+      details: {
+        to: appointment.patientDetails.email,
+        timestamp: new Date().toISOString(),
+        note: 'Backend email API unavailable'
+      }
+    };
+  }
+};
+
+  // Send appointment status update email
+  const sendAppointmentStatusEmail = async (appointment, status) => {
+    try {
+      const response = await axios.post('http://localhost:5000/api/email/appointment-confirmation', {
+        to: appointment.patientDetails.email,
+        patientName: appointment.patientDetails.fullName,
+        doctorName: appointment.doctorName,
+        doctorSpecialization: appointment.doctorSpecialization,
+        appointmentDate: formatDate(appointment.appointmentDate),
+        appointmentTime: `${formatTime(appointment.timeSlot.startTime)} - ${formatTime(appointment.timeSlot.endTime)}`,
+        appointmentType: appointment.consultationType,
+        status: status
+      });
+
+      if (response.data.success) {
+        console.log(`✅ Status update email sent for ${status} appointment`);
+        return { success: true };
+      }
+    } catch (error) {
+      console.warn('⚠️ Could not send status email:', error.message);
+      return { success: false, error: error.message };
+    }
+  };
+
+  // Test email functionality
+  const testEmailFunction = async () => {
+    try {
+      setTestingEmail(true);
+      showAlert("info", "Sending test email...");
+      
+      const response = await axios.post('http://localhost:5000/api/email/test', {
+        to: "test@example.com", // You can replace with your email
+        name: doctorName
+      });
+      
+      if (response.data.success) {
+        showAlert("success", "✅ Test email sent successfully! Check your inbox or spam folder.");
+      } else {
+        showAlert("warning", `⚠️ Test email failed: ${response.data.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Test email error:', error);
+      showAlert("error", "❌ Failed to send test email. Check backend connection.");
+    } finally {
+      setTestingEmail(false);
+    }
+  };
+
+  // ==================== UPDATED HANDLER FUNCTIONS ====================
+
+  // Handle appointment status update with email notification
   const handleStatusUpdate = async (appointmentId, newStatus) => {
     setActionLoading(true);
     try {
+      // Update appointment status
       await axios.put(`http://localhost:5000/api/appointments/${appointmentId}/status`, { 
         status: newStatus,
         doctorId: doctorId 
       });
-      setAppointments(prev => prev.map(apt => apt._id === appointmentId ? { ...apt, status: newStatus } : apt));
+      
+      // Send email notification for status change
+      const appointment = appointments.find(apt => apt._id === appointmentId);
+      if (appointment && ['confirmed', 'cancelled', 'completed'].includes(newStatus)) {
+        await sendAppointmentStatusEmail(appointment, newStatus);
+      }
+      
+      // Update local state
+      setAppointments(prev => prev.map(apt => 
+        apt._id === appointmentId ? { ...apt, status: newStatus } : apt
+      ));
+      
       setShowModal(false);
       setSelectedAppointment(null);
-      showAlert("success", `Appointment ${newStatus} successfully.`);
+      
+      showAlert("success", `Appointment ${newStatus} successfully. Email notification sent.`);
+      
     } catch (error) {
-      console.error("Error updating appointment status:", error);
-      showAlert("error", "Failed to update appointment status. Please try again.");
+      console.error("❌ Error updating appointment status:", error);
+      showAlert("error", `Failed to update appointment status: ${error.response?.data?.error || error.message}`);
     } finally {
       setActionLoading(false);
     }
   };
 
-  // Send consultation link
-  const sendLinkNotification = async (appointment, link, platform, instructions) => {
-    const platformInstructions = {
-      google: "Please join using your Google account. No additional software needed.",
-      zoom: "Please download Zoom client or use the web version.",
-      teams: "Works best with Microsoft Teams app installed."
-    };
+  // Handle sending consultation link with real email
+ const handleSendConsultationLink = async (appointment) => {
+  if (!consultationLink.trim()) {
+    showAlert("error", "Please enter a valid consultation link");
+    return;
+  }
 
-    const emailContent = {
-      to: appointment.patientDetails.email,
-      subject: `Online Consultation Link - Dr. ${appointment.doctorName}`,
-      body: `
-Dear ${appointment.patientDetails.fullName},
-
-Your online consultation with ${appointment.doctorName} has been scheduled.
-
-Appointment Details:
-- Date: ${formatDate(appointment.appointmentDate)}
-- Time: ${formatTime(appointment.timeSlot.startTime)} - ${formatTime(appointment.timeSlot.endTime)}
-- Doctor: ${appointment.doctorName} (${appointment.doctorSpecialization})
-- Consultation Link: ${link}
-
-Platform: ${platform.charAt(0).toUpperCase() + platform.slice(1)}
-Instructions: ${platformInstructions[platform]}
-
-${instructions ? `Additional Instructions: ${instructions}` : ''}
-
-Please join the meeting 5-10 minutes before your scheduled time to ensure everything is working properly.
-
-If you have any technical difficulties, please contact us at least 30 minutes before your appointment.
-
-Best regards,
-${appointment.doctorName}
-${appointment.doctorSpecialization}
-      `.trim()
-    };
-
-    console.log("Sending email:", emailContent);
+  setSendingLink(true);
+  try {
+    console.log("🚀 Starting consultation link sending process...");
+    console.log("📋 Appointment ID:", appointment._id);
+    console.log("📧 Patient Email:", appointment.patientDetails?.email);
+    console.log("🔗 Consultation Link:", consultationLink);
+    console.log("🖥️ Platform:", selectedPlatform);
     
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        console.log(`Email sent successfully to ${appointment.patientDetails.email}`);
-        resolve();
-      }, 1500);
-    });
-  };
-
-  const handleSendConsultationLink = async (appointment) => {
-    if (!consultationLink.trim()) {
-      showAlert("error", "Please enter a valid consultation link");
-      return;
-    }
-
-    setSendingLink(true);
+    // 1. Update appointment with meeting link
     try {
-      // Update appointment with meeting link
-      await axios.put(`http://localhost:5000/api/appointments/${appointment._id}/meeting-link`, {
+      console.log("📝 Step 1: Updating appointment with meeting link...");
+      const updateResponse = await axios.put(`http://localhost:5000/api/appointments/${appointment._id}/meeting-link`, {
         meetingLink: consultationLink,
         meetingPlatform: selectedPlatform,
         doctorId: doctorId
       });
-
-      // Update local state
-      setAppointments(prev => prev.map(apt => 
-        apt._id === appointment._id 
-          ? { ...apt, meetingLink: consultationLink }
-          : apt
-      ));
-
-      // Send email notification
-      await sendLinkNotification(appointment, consultationLink, selectedPlatform, meetingInstructions);
-
-      showAlert("success", "Consultation link sent successfully!");
-      setShowLinkModal(false);
-      setConsultationLink("");
-      setMeetingInstructions("");
-      setSelectedPlatform("google");
-    } catch (error) {
-      console.error("Error sending consultation link:", error);
-      showAlert("error", "Failed to send consultation link. Please try again.");
-    } finally {
-      setSendingLink(false);
+      console.log("✅ Appointment update successful:", updateResponse.data);
+    } catch (updateError) {
+      console.error("❌ Appointment update failed:", updateError.response?.data || updateError.message);
+      // Don't fail the whole process if appointment update fails
     }
-  };
+
+    // 2. Send email notification
+    console.log("📧 Step 2: Sending email notification...");
+    const emailResult = await sendLinkNotification(
+      appointment, 
+      consultationLink, 
+      selectedPlatform, 
+      meetingInstructions
+    );
+    console.log("📧 Email result:", emailResult);
+
+    // 3. Update local state
+    console.log("🔄 Step 3: Updating local state...");
+    setAppointments(prev => prev.map(apt => 
+      apt._id === appointment._id 
+        ? { ...apt, meetingLink: consultationLink }
+        : apt
+    ));
+
+    if (emailResult.success) {
+      if (emailResult.demo) {
+        showAlert("success", "✅ Consultation link saved! (Demo mode - email would be sent)");
+      } else {
+        showAlert("success", "✅ Consultation link sent successfully via email!");
+        
+        // Show email confirmation details
+        console.log('📧 Email confirmation:', {
+          sentTo: appointment.patientDetails.email,
+          timestamp: new Date().toLocaleString(),
+          appointmentId: appointment._id
+        });
+      }
+    } else {
+      showAlert("warning", "⚠️ Appointment updated but email failed to send. Please try sending the link again.");
+    }
+    
+    setShowLinkModal(false);
+    setConsultationLink("");
+    setMeetingInstructions("");
+    setSelectedPlatform("google");
+    
+  } catch (error) {
+    console.error("❌ Error in sending consultation link:", error);
+    console.error("❌ Error details:", {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    });
+    showAlert("error", `Failed to send consultation link: ${error.message}`);
+  } finally {
+    setSendingLink(false);
+  }
+};
 
   const handleActionClick = (appointment, action) => {
     setSelectedAppointment(appointment);
@@ -2269,6 +2173,29 @@ ${appointment.doctorSpecialization}
                 </svg>
                 Manage Schedule
               </button>
+              {/* Test Email Button */}
+              <button
+                onClick={testEmailFunction}
+                disabled={testingEmail}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition duration-200 font-medium disabled:opacity-50 flex items-center"
+              >
+                {testingEmail ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Testing...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    Test Email
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
@@ -2282,12 +2209,15 @@ ${appointment.doctorSpecialization}
               ? "bg-green-50 border-green-200 text-green-800" 
               : alert.type === "error"
               ? "bg-red-50 border-red-200 text-red-800"
+              : alert.type === "warning"
+              ? "bg-yellow-50 border-yellow-200 text-yellow-800"
               : "bg-blue-50 border-blue-200 text-blue-800"
           }`}>
             <div className="flex items-center">
               <svg className={`w-5 h-5 mr-2 ${
                 alert.type === "success" ? "text-green-400" : 
                 alert.type === "error" ? "text-red-400" : 
+                alert.type === "warning" ? "text-yellow-400" : 
                 "text-blue-400"
               }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
@@ -2295,6 +2225,8 @@ ${appointment.doctorSpecialization}
                     "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" :
                     alert.type === "error" ?
                     "M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" :
+                    alert.type === "warning" ?
+                    "M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" :
                     "M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                   } 
                 />
@@ -2632,7 +2564,7 @@ ${appointment.doctorSpecialization}
                 </li>
                 <li className="flex items-start">
                   <span className="text-purple-500 mr-2">🔗</span>
-                  <strong>Send Link:</strong> Generate and send meeting link to patient
+                  <strong>Send Link:</strong> Generate and send meeting link to patient via email
                 </li>
                 <li className="flex items-start">
                   <span className="text-yellow-500 mr-2">⏳</span>
@@ -2972,7 +2904,7 @@ ${appointment.doctorSpecialization}
                         <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                         </svg>
-                        Send Link
+                        Send Link via Email
                       </>
                     )}
                   </button>

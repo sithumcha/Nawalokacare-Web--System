@@ -2,7 +2,6 @@
 
 
 
-
 // const jwt = require("jsonwebtoken");
 // const Doctor = require("../models/Doctor");
 
@@ -28,6 +27,7 @@
 //       medicalLicenseNumber,
 //       password,
 //       price,
+//       availableTimeSlots // Added support for time slots during registration
 //     } = req.body;
 
 //     // Validation
@@ -64,6 +64,7 @@
 //       medicalLicenseNumber,
 //       password,
 //       price: Number(price),
+//       availableTimeSlots: availableTimeSlots ? JSON.parse(availableTimeSlots) : [] // Parse time slots if provided
 //     };
 
 //     const newDoctor = await Doctor.create(doctorData);
@@ -222,14 +223,22 @@
 //   }
 // };
 
-// // Add available time slot for a doctor
+// // Add available time slot for a doctor (UPDATED with consultationType)
 // exports.addTimeSlot = async (req, res) => {
 //   try {
 //     const { doctorId } = req.params;
-//     const { day, startTime, endTime, quantity } = req.body;
+//     const { day, startTime, endTime, consultationType, quantity } = req.body;
 
-//     if (!day || !startTime || !endTime || !quantity) {
-//       return res.status(400).json({ error: "Day, start time, end time, and quantity are required" });
+//     if (!day || !startTime || !endTime || !consultationType || !quantity) {
+//       return res.status(400).json({ 
+//         error: "Day, start time, end time, consultation type, and quantity are required" 
+//       });
+//     }
+
+//     if (!['physical', 'online'].includes(consultationType)) {
+//       return res.status(400).json({ 
+//         error: "Consultation type must be either 'physical' or 'online'" 
+//       });
 //     }
 
 //     if (startTime >= endTime) {
@@ -241,11 +250,20 @@
 //       return res.status(404).json({ error: "Doctor not found" });
 //     }
 
-//     doctor.availableTimeSlots.push({ day, startTime, endTime, quantity });
+//     const newTimeSlot = {
+//       day, 
+//       startTime, 
+//       endTime, 
+//       consultationType,
+//       quantity: Number(quantity)
+//     };
+
+//     doctor.availableTimeSlots.push(newTimeSlot);
 //     await doctor.save();
 
 //     res.status(200).json({
 //       message: "Time slot added successfully",
+//       timeSlot: newTimeSlot,
 //       availableTimeSlots: doctor.availableTimeSlots,
 //     });
 //   } catch (error) {
@@ -267,6 +285,37 @@
 //     res.status(200).json({ availableTimeSlots: doctor.availableTimeSlots });
 //   } catch (error) {
 //     console.error("Error fetching time slots:", error);
+//     res.status(500).json({ error: "Failed to fetch time slots" });
+//   }
+// };
+
+// // Get time slots by consultation type (NEW FUNCTION)
+// exports.getTimeSlotsByType = async (req, res) => {
+//   try {
+//     const { doctorId } = req.params;
+//     const { consultationType } = req.query;
+
+//     if (!consultationType || !['physical', 'online'].includes(consultationType)) {
+//       return res.status(400).json({ 
+//         error: "Valid consultation type (physical or online) is required" 
+//       });
+//     }
+
+//     const doctor = await Doctor.findById(doctorId).select("availableTimeSlots");
+//     if (!doctor) {
+//       return res.status(404).json({ error: "Doctor not found" });
+//     }
+
+//     const filteredSlots = doctor.availableTimeSlots.filter(
+//       slot => slot.consultationType === consultationType
+//     );
+
+//     res.status(200).json({ 
+//       consultationType,
+//       availableTimeSlots: filteredSlots 
+//     });
+//   } catch (error) {
+//     console.error("Error fetching time slots by type:", error);
 //     res.status(500).json({ error: "Failed to fetch time slots" });
 //   }
 // };
@@ -314,28 +363,52 @@
 //   }
 // };
 
+// // Update a specific time slot (NEW FUNCTION)
+// exports.updateTimeSlot = async (req, res) => {
+//   try {
+//     const { doctorId, slotId } = req.params;
+//     const { day, startTime, endTime, consultationType, quantity } = req.body;
+
+//     const doctor = await Doctor.findById(doctorId);
+//     if (!doctor) return res.status(404).json({ error: "Doctor not found" });
+
+//     const timeSlot = doctor.availableTimeSlots.id(slotId);
+//     if (!timeSlot) return res.status(404).json({ error: "Time slot not found" });
+
+//     // Update fields if provided
+//     if (day) timeSlot.day = day;
+//     if (startTime) timeSlot.startTime = startTime;
+//     if (endTime) timeSlot.endTime = endTime;
+//     if (consultationType) {
+//       if (!['physical', 'online'].includes(consultationType)) {
+//         return res.status(400).json({ 
+//           error: "Consultation type must be either 'physical' or 'online'" 
+//         });
+//       }
+//       timeSlot.consultationType = consultationType;
+//     }
+//     if (quantity) timeSlot.quantity = Number(quantity);
+
+//     // Validate time order
+//     if (timeSlot.startTime >= timeSlot.endTime) {
+//       return res.status(400).json({ error: "End time must be after start time" });
+//     }
+
+//     await doctor.save();
+
+//     res.status(200).json({
+//       message: "Time slot updated successfully",
+//       timeSlot: timeSlot,
+//       availableTimeSlots: doctor.availableTimeSlots,
+//     });
+//   } catch (error) {
+//     console.error("Error updating time slot:", error);
+//     res.status(500).json({ error: "Failed to update time slot" });
+//   }
+// };
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-///////////////////////////////
-
-
-
-
-
+////////////////////////////////////  wada karana eka uda 
 
 
 
@@ -347,11 +420,65 @@
 
 const jwt = require("jsonwebtoken");
 const Doctor = require("../models/Doctor");
+const { sendEmail } = require("../config/nodemailer");
 
 // Helper to sign JWT token
 function signToken(id) {
-  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || "7d" });
+  return jwt.sign({ id }, process.env.JWT_SECRET, { 
+    expiresIn: process.env.JWT_EXPIRES_IN || "7d" 
+  });
 }
+
+// Email template functions
+const createRegistrationEmailHTML = (doctorData, plainPassword) => {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: #4F46E5; color: white; padding: 20px; text-align: center; }
+            .content { padding: 30px; background: #f9fafb; }
+            .credentials { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #4F46E5; }
+            .warning { background: #fff3cd; padding: 15px; border-radius: 6px; margin: 20px 0; color: #856404; }
+            .button { display: inline-block; background: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>🏥 Hospital Management System</h1>
+                <p>Doctor Registration Successful</p>
+            </div>
+            
+            <div class="content">
+                <h2>Welcome Dr. ${doctorData.lastName}!</h2>
+                <p>Your registration has been successfully completed.</p>
+                
+                <div class="credentials">
+                    <h3>Your Login Credentials:</h3>
+                    <p><strong>Email:</strong> ${doctorData.email}</p>
+                    <p><strong>Password:</strong> ${plainPassword}</p>
+                    <p><strong>Doctor ID:</strong> ${doctorData._id}</p>
+                </div>
+                
+                <div class="warning">
+                    <strong>⚠️ IMPORTANT:</strong>
+                    <p>Please change your password immediately after first login.</p>
+                </div>
+                
+                <p style="text-align: center;">
+                    <a href="http://localhost:3000/doctor/login" class="button">Login to Your Account</a>
+                </p>
+                
+                <p>Best regards,<br>Hospital Management Team</p>
+            </div>
+        </div>
+    </body>
+    </html>
+  `;
+};
 
 // Register Doctor
 exports.registerDoctor = async (req, res) => {
@@ -370,25 +497,33 @@ exports.registerDoctor = async (req, res) => {
       medicalLicenseNumber,
       password,
       price,
-      availableTimeSlots // Added support for time slots during registration
+      availableTimeSlots
     } = req.body;
+
+    // Store plain password for email
+    const plainPassword = password;
 
     // Validation
     if (!password || password.length < 8) {
-      return res.status(400).json({ error: "Password must be at least 8 characters" });
+      return res.status(400).json({ 
+        error: "Password must be at least 8 characters" 
+      });
     }
 
     if (!price || price <= 0) {
-      return res.status(400).json({ error: "Price is required and must be greater than 0" });
+      return res.status(400).json({ 
+        error: "Price is required and must be greater than 0" 
+      });
     }
 
-    // Check for duplicate doctor by email, national ID, or medical license number
+    // Check for duplicate doctor
     const existingDoctor = await Doctor.findOne({
       $or: [{ email: email.toLowerCase() }, { nationalId }, { medicalLicenseNumber }],
     });
+    
     if (existingDoctor) {
       return res.status(409).json({
-        error: "Doctor with provided email, national ID, or medical license number already exists",
+        error: "Doctor already exists with this email, national ID, or license number",
       });
     }
 
@@ -407,28 +542,115 @@ exports.registerDoctor = async (req, res) => {
       medicalLicenseNumber,
       password,
       price: Number(price),
-      availableTimeSlots: availableTimeSlots ? JSON.parse(availableTimeSlots) : [] // Parse time slots if provided
+      availableTimeSlots: availableTimeSlots ? JSON.parse(availableTimeSlots) : []
     };
 
+   
+
+//     // ✅ Send registration email with credentials
+//     try {
+//       const htmlContent = createRegistrationEmailHTML(newDoctor.toObject(), plainPassword);
+      
+//       const mailOptions = {
+//           from: `"Hospital System" <${process.env.SMTP_USER}>`,// MUST match Brevo verified sender
+//         to: newDoctor.email,
+//         subject: 'Doctor Registration Successful - Hospital Management System',
+//         html: htmlContent,
+//         text: `Your registration was successful.\n\nEmail: ${newDoctor.email}\nPassword: ${plainPassword}\n\nLogin at: http://localhost:3000/doctor/login`
+//       };
+
+//       console.log("📧 Attempting to send email via Brevo...");
+//       const emailResult = await sendEmail(mailOptions);
+      
+//       if (emailResult.success) {
+//         console.log(`✅ Registration email sent to ${newDoctor.email}`);
+//       } else {
+//         console.warn(`⚠️ Email sending failed: ${emailResult.error}`);
+//         // Continue anyway - registration successful
+//       }
+//     } catch (emailError) {
+//       console.error('⚠️ Email error:', emailError.message);
+//       // Don't fail registration if email fails
+//     }
+
+//     const token = signToken(newDoctor._id);
+//     const safeDoctor = newDoctor.toObject();
+//     delete safeDoctor.password;
+
+//     res.status(201).json({
+//       success: true,
+//       message: "Doctor registered successfully",
+//       token,
+//       doctor: safeDoctor,
+//     });
+//   } catch (error) {
+//     console.error("Error registering doctor:", error);
+//     res.status(500).json({ error: "Failed to register doctor" });
+//   }
+// };
+
+
+
+
     const newDoctor = await Doctor.create(doctorData);
+
+    // ✅ Send registration email with credentials
+    try {
+      const htmlContent = createRegistrationEmailHTML(newDoctor.toObject(), plainPassword);
+      
+      // ✅ FIXED: Use verified sender email
+      const mailOptions = {
+        from: {
+          name: process.env.EMAIL_NAME || 'MediCare Clinic',
+          address: process.env.EMAIL_FROM || process.env.SENDER_EMAIL || 'sithumchanukasandaruwan2002@gmail.com'
+        },
+        to: newDoctor.email,
+        subject: 'Doctor Registration Successful - Hospital Management System',
+        html: htmlContent,
+        text: `Your registration was successful.\n\nEmail: ${newDoctor.email}\nPassword: ${plainPassword}\n\nLogin at: http://localhost:3000/doctor/login`
+      };
+
+      console.log("📧 Attempting to send email via Brevo...");
+      console.log("📨 From:", mailOptions.from.name, "<" + mailOptions.from.address + ">");
+      console.log("📨 To:", mailOptions.to);
+      
+      const emailResult = await sendEmail(mailOptions);
+      
+      if (emailResult.success) {
+        console.log(`✅ Registration email sent to ${newDoctor.email}`);
+      } else {
+        console.warn(`⚠️ Email sending failed: ${emailResult.error}`);
+      }
+    } catch (emailError) {
+      console.error('⚠️ Email error:', emailError.message);
+      console.error('⚠️ Email error stack:', emailError.stack);
+    }
 
     const token = signToken(newDoctor._id);
     const safeDoctor = newDoctor.toObject();
     delete safeDoctor.password;
 
     res.status(201).json({
+      success: true,
       message: "Doctor registered successfully",
       token,
       doctor: safeDoctor,
     });
   } catch (error) {
     console.error("Error registering doctor:", error);
-    if (error.name === 'ValidationError') {
-      return res.status(400).json({ error: "Validation error", details: error.message });
-    }
-    res.status(500).json({ error: "Failed to register doctor", details: error.message });
+    res.status(500).json({ error: "Failed to register doctor" });
   }
 };
+
+
+
+
+
+
+
+
+
+
 
 // Login Doctor
 exports.loginDoctor = async (req, res) => {
@@ -459,7 +681,7 @@ exports.loginDoctor = async (req, res) => {
     });
   } catch (error) {
     console.error("Error logging in:", error);
-    res.status(500).json({ error: "Failed to login", details: error.message });
+    res.status(500).json({ error: "Failed to login" });
   }
 };
 
@@ -490,7 +712,7 @@ exports.changePassword = async (req, res) => {
   }
 };
 
-// CRUD Operations: Get all doctors
+// Get all doctors
 exports.getAllDoctors = async (req, res) => {
   try {
     const doctors = await Doctor.find().select("-password");
@@ -501,7 +723,7 @@ exports.getAllDoctors = async (req, res) => {
   }
 };
 
-// CRUD Operations: Get doctor by ID
+// Get doctor by ID
 exports.getDoctorById = async (req, res) => {
   const { id } = req.params;
   try {
@@ -514,7 +736,7 @@ exports.getDoctorById = async (req, res) => {
   }
 };
 
-// CRUD Operations: Update doctor by ID
+// Update doctor by ID
 exports.updateDoctor = async (req, res) => {
   const { id } = req.params;
   try {
@@ -533,7 +755,6 @@ exports.updateDoctor = async (req, res) => {
       ...(req.body.price && { price: Number(req.body.price) }),
     };
 
-    // Handle file upload separately
     if (req.file) {
       updateData.profilePicture = req.file.path;
     }
@@ -546,14 +767,11 @@ exports.updateDoctor = async (req, res) => {
     res.status(200).json({ message: "Doctor updated successfully", doctor: updatedDoctor });
   } catch (error) {
     console.error("Error updating doctor:", error);
-    if (error.name === 'ValidationError') {
-      return res.status(400).json({ error: "Validation error", details: error.message });
-    }
     res.status(500).json({ error: "Failed to update doctor" });
   }
 };
 
-// CRUD Operations: Delete doctor by ID
+// Delete doctor by ID
 exports.deleteDoctor = async (req, res) => {
   const { id } = req.params;
   try {
@@ -566,7 +784,7 @@ exports.deleteDoctor = async (req, res) => {
   }
 };
 
-// Add available time slot for a doctor (UPDATED with consultationType)
+// Add time slot
 exports.addTimeSlot = async (req, res) => {
   try {
     const { doctorId } = req.params;
@@ -615,7 +833,7 @@ exports.addTimeSlot = async (req, res) => {
   }
 };
 
-// Get all available time slots for a doctor
+// Get time slots
 exports.getTimeSlots = async (req, res) => {
   try {
     const { doctorId } = req.params;
@@ -632,7 +850,7 @@ exports.getTimeSlots = async (req, res) => {
   }
 };
 
-// Get time slots by consultation type (NEW FUNCTION)
+// Get time slots by type
 exports.getTimeSlotsByType = async (req, res) => {
   try {
     const { doctorId } = req.params;
@@ -663,10 +881,9 @@ exports.getTimeSlotsByType = async (req, res) => {
   }
 };
 
-// Public route to fetch doctor details along with available time slots
+// Get doctor details public
 exports.getDoctorDetailsPublic = async (req, res) => {
   const { doctorId } = req.params;
-
   try {
     const doctor = await Doctor.findById(doctorId).select("-password");
     if (!doctor) return res.status(404).json({ error: "Doctor not found" });
@@ -682,7 +899,7 @@ exports.getDoctorDetailsPublic = async (req, res) => {
   }
 };
 
-// Delete a specific time slot for a doctor
+// Delete time slot
 exports.deleteTimeSlot = async (req, res) => {
   try {
     const { doctorId, slotId } = req.params;
@@ -706,7 +923,7 @@ exports.deleteTimeSlot = async (req, res) => {
   }
 };
 
-// Update a specific time slot (NEW FUNCTION)
+// Update time slot
 exports.updateTimeSlot = async (req, res) => {
   try {
     const { doctorId, slotId } = req.params;
@@ -718,7 +935,6 @@ exports.updateTimeSlot = async (req, res) => {
     const timeSlot = doctor.availableTimeSlots.id(slotId);
     if (!timeSlot) return res.status(404).json({ error: "Time slot not found" });
 
-    // Update fields if provided
     if (day) timeSlot.day = day;
     if (startTime) timeSlot.startTime = startTime;
     if (endTime) timeSlot.endTime = endTime;
@@ -732,7 +948,6 @@ exports.updateTimeSlot = async (req, res) => {
     }
     if (quantity) timeSlot.quantity = Number(quantity);
 
-    // Validate time order
     if (timeSlot.startTime >= timeSlot.endTime) {
       return res.status(400).json({ error: "End time must be after start time" });
     }
@@ -749,9 +964,3 @@ exports.updateTimeSlot = async (req, res) => {
     res.status(500).json({ error: "Failed to update time slot" });
   }
 };
-
-
-
-
-
-

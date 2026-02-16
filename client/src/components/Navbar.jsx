@@ -115,7 +115,7 @@ const handleLogout = () => {
             </Link>
 
             <Link
-              to="/doctors"
+              to="/list"
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 isActiveRoute('/doctors') 
                   ? 'bg-blue-100 text-blue-700' 

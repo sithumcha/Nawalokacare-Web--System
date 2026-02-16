@@ -77,8 +77,54 @@ const doctorSchema = new mongoose.Schema(
     phoneNumber: { type: String, required: true },
     medicalLicenseNumber: { type: String, required: true, unique: true },
     password: { type: String, required: true, minlength: 8, select: false }, // Password should be hashed
-    price: { type: Number, required: true }, // Price for the doctor's services
+    price: { type: Number, required: true },
     
+    // Price for the doctor's services
+
+
+      averageRating: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 5
+  },
+  
+  totalReviews: {
+    type: Number,
+    default: 0
+  },
+  
+  ratingDetails: {
+    professionalism: { type: Number, default: 0 },
+    waitingTime: { type: Number, default: 0 },
+    cleanliness: { type: Number, default: 0 },
+    experience: { type: Number, default: 0 }
+  },
+
+
+     // Rating fields
+    rating: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5
+    },
+    totalReviews: {
+      type: Number,
+      default: 0
+    },
+    ratingsCount: {
+      oneStar: { type: Number, default: 0 },
+      twoStars: { type: Number, default: 0 },
+      threeStars: { type: Number, default: 0 },
+      fourStars: { type: Number, default: 0 },
+      fiveStars: { type: Number, default: 0 }
+    },
+    averageProfessionalism: { type: Number, default: 0 },
+    averageWaitingTime: { type: Number, default: 0 },
+    averageFacilityCleanliness: { type: Number, default: 0 },
+    averageOverallExperience: { type: Number, default: 0 },
+
     // Add available time slots for the doctor
     availableTimeSlots: [
       {
