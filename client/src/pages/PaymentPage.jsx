@@ -34,9 +34,14 @@ const PaymentPage = () => {
   // Refs for cursor position
   const cardNumberRef = useRef(null);
   const expiryDateRef = useRef(null);
+  const cardHolderRef = useRef(null);
+  const cvvRef = useRef(null);
+  const upiIdRef = useRef(null);
+  const insuranceProviderRef = useRef(null);
+  const insuranceIdRef = useRef(null);
+  const policyNumberRef = useRef(null);
 
   useEffect(() => {
-    // Initialize user ID from localStorage
     const getUserFromStorage = () => {
       try {
         const userData = localStorage.getItem("user");
@@ -54,17 +59,15 @@ const PaymentPage = () => {
           return;
         }
 
-        console.warn("No user ID found. User might need to log in.");
         setUserId(null);
       } catch (error) {
-        console.error("Error getting user ID from storage:", error);
+        console.error("Error getting user ID:", error);
         setUserId(null);
       }
     };
 
     getUserFromStorage();
 
-    // Get appointment data from navigation state
     const data = location.state?.appointmentData;
     const doctorData = location.state?.doctor;
     
@@ -73,8 +76,10 @@ const PaymentPage = () => {
       setDoctor(doctorData);
       setPaymentMethod(data.paymentMethod || "card");
       setIsLoading(false);
+      
+      console.log('Appointment Data:', data);
+      console.log('Doctor Data:', doctorData);
     } else {
-      // If no data in state, redirect back to booking
       setError("Appointment data not found. Please start over.");
       setTimeout(() => {
         navigate(`/book/${id}`);
@@ -82,78 +87,37 @@ const PaymentPage = () => {
     }
   }, [location.state, id, navigate]);
 
-  // Fixed: Proper cursor position handling for formatted inputs
+  // Card Number Change
   const handleCardNumberChange = (e) => {
     const input = e.target;
-    const cursorPosition = input.selectionStart;
-    
-    // Get raw value without spaces
-    let value = input.value.replace(/\s+/g, '');
-    
-    // Only allow numbers
-    value = value.replace(/[^0-9]/g, '');
-    
-    // Limit to 16 digits
-    value = value.substring(0, 16);
-    
-    // Format with spaces every 4 digits
-    const formattedValue = value.replace(/(\d{4})(?=\d)/g, '$1 ');
-    
-    // Calculate new cursor position
-    let newCursorPosition = cursorPosition;
-    
-    // If we added a space before the cursor, move cursor forward
-    if (formattedValue.length > input.value.length && cursorPosition > 0) {
-      const addedChars = formattedValue.length - input.value.length;
-      newCursorPosition = cursorPosition + addedChars;
-    }
-    // If we removed characters, adjust cursor position
-    else if (formattedValue.length < input.value.length) {
-      const removedChars = input.value.length - formattedValue.length;
-      newCursorPosition = Math.max(0, cursorPosition - removedChars);
-    }
+    let rawValue = input.value.replace(/\s+/g, '').replace(/[^0-9]/g, '');
+    rawValue = rawValue.substring(0, 16);
+    const formattedValue = rawValue.replace(/(\d{4})(?=\d)/g, '$1 ');
     
     setPaymentDetails(prev => ({
       ...prev,
       cardNumber: formattedValue
     }));
     
-    // Set cursor position after state update
     setTimeout(() => {
       if (cardNumberRef.current) {
-        cardNumberRef.current.setSelectionRange(newCursorPosition, newCursorPosition);
+        cardNumberRef.current.focus();
+        cardNumberRef.current.setSelectionRange(formattedValue.length, formattedValue.length);
       }
-    }, 0);
+    }, 10);
     
     if (paymentError) setPaymentError("");
   };
 
-  // Fixed: Proper cursor position handling for expiry date
+  // Expiry Date Change
   const handleExpiryDateChange = (e) => {
     const input = e.target;
-    const cursorPosition = input.selectionStart;
+    let rawValue = input.value.replace(/\D/g, '');
+    rawValue = rawValue.substring(0, 4);
     
-    let value = input.value.replace(/\D/g, '');
-    
-    // Limit to 4 digits
-    value = value.substring(0, 4);
-    
-    // Format as MM/YY
-    let formattedValue = value;
-    if (value.length >= 2) {
-      formattedValue = value.substring(0, 2) + '/' + value.substring(2, 4);
-    }
-    
-    // Calculate new cursor position
-    let newCursorPosition = cursorPosition;
-    
-    // If we added a slash before the cursor, move cursor forward
-    if (formattedValue.length > input.value.length && cursorPosition >= 2) {
-      newCursorPosition = cursorPosition + 1;
-    }
-    // If we removed characters, adjust cursor position
-    else if (formattedValue.length < input.value.length && cursorPosition > 2) {
-      newCursorPosition = cursorPosition - 1;
+    let formattedValue = rawValue;
+    if (rawValue.length >= 2) {
+      formattedValue = rawValue.substring(0, 2) + '/' + rawValue.substring(2, 4);
     }
     
     setPaymentDetails(prev => ({
@@ -161,42 +125,131 @@ const PaymentPage = () => {
       expiryDate: formattedValue
     }));
     
-    // Set cursor position after state update
     setTimeout(() => {
       if (expiryDateRef.current) {
-        expiryDateRef.current.setSelectionRange(newCursorPosition, newCursorPosition);
+        expiryDateRef.current.focus();
+        expiryDateRef.current.setSelectionRange(formattedValue.length, formattedValue.length);
       }
-    }, 0);
+    }, 10);
     
     if (paymentError) setPaymentError("");
   };
 
-  // Regular input change handler for other fields
-  const handlePaymentInputChange = (e) => {
-    const { name, value } = e.target;
+  // CVV Change
+  const handleCvvChange = (e) => {
+    const input = e.target;
+    let value = input.value.replace(/\D/g, '').substring(0, 4);
     
-    // For CVV, only allow numbers and limit to 4 digits
-    if (name === 'cvv') {
-      const numericValue = value.replace(/\D/g, '').substring(0, 4);
-      setPaymentDetails(prev => ({
-        ...prev,
-        [name]: numericValue
-      }));
-    } else {
-      setPaymentDetails(prev => ({
-        ...prev,
-        [name]: value
-      }));
-    }
+    setPaymentDetails(prev => ({
+      ...prev,
+      cvv: value
+    }));
     
-    // Clear any previous payment errors when user starts typing
+    setTimeout(() => {
+      if (cvvRef.current) {
+        cvvRef.current.focus();
+        cvvRef.current.setSelectionRange(value.length, value.length);
+      }
+    }, 10);
+    
     if (paymentError) setPaymentError("");
+  };
+
+  // Card Holder Change
+  const handleCardHolderChange = (e) => {
+    const input = e.target;
+    const value = input.value;
+    
+    setPaymentDetails(prev => ({
+      ...prev,
+      cardHolder: value
+    }));
+    
+    setTimeout(() => {
+      if (cardHolderRef.current) {
+        cardHolderRef.current.focus();
+        cardHolderRef.current.setSelectionRange(value.length, value.length);
+      }
+    }, 10);
+  };
+
+  // UPI ID Change
+  const handleUpiIdChange = (e) => {
+    const input = e.target;
+    const value = input.value;
+    
+    setPaymentDetails(prev => ({
+      ...prev,
+      upiId: value
+    }));
+    
+    setTimeout(() => {
+      if (upiIdRef.current) {
+        upiIdRef.current.focus();
+        upiIdRef.current.setSelectionRange(value.length, value.length);
+      }
+    }, 10);
+  };
+
+  // Insurance Provider Change
+  const handleInsuranceProviderChange = (e) => {
+    const input = e.target;
+    const value = input.value;
+    
+    setPaymentDetails(prev => ({
+      ...prev,
+      insuranceProvider: value
+    }));
+    
+    setTimeout(() => {
+      if (insuranceProviderRef.current) {
+        insuranceProviderRef.current.focus();
+        insuranceProviderRef.current.setSelectionRange(value.length, value.length);
+      }
+    }, 10);
+  };
+
+  // Insurance ID Change
+  const handleInsuranceIdChange = (e) => {
+    const input = e.target;
+    const value = input.value;
+    
+    setPaymentDetails(prev => ({
+      ...prev,
+      insuranceId: value
+    }));
+    
+    setTimeout(() => {
+      if (insuranceIdRef.current) {
+        insuranceIdRef.current.focus();
+        insuranceIdRef.current.setSelectionRange(value.length, value.length);
+      }
+    }, 10);
+  };
+
+  // Policy Number Change
+  const handlePolicyNumberChange = (e) => {
+    const input = e.target;
+    const value = input.value;
+    
+    setPaymentDetails(prev => ({
+      ...prev,
+      policyNumber: value
+    }));
+    
+    setTimeout(() => {
+      if (policyNumberRef.current) {
+        policyNumberRef.current.focus();
+        policyNumberRef.current.setSelectionRange(value.length, value.length);
+      }
+    }, 10);
   };
 
   // Validate payment details
   const validatePaymentDetails = () => {
     if (paymentMethod === 'card') {
       const rawCardNumber = paymentDetails.cardNumber.replace(/\s/g, '');
+      
       if (!rawCardNumber || rawCardNumber.length !== 16) {
         setPaymentError("Please enter a valid 16-digit card number");
         return false;
@@ -209,7 +262,7 @@ const PaymentPage = () => {
         setPaymentError("Please enter a valid CVV (3 or 4 digits)");
         return false;
       }
-      if (!paymentDetails.cardHolder) {
+      if (!paymentDetails.cardHolder || paymentDetails.cardHolder.trim() === '') {
         setPaymentError("Please enter card holder name");
         return false;
       }
@@ -219,11 +272,11 @@ const PaymentPage = () => {
         return false;
       }
     } else if (paymentMethod === 'insurance') {
-      if (!paymentDetails.insuranceProvider) {
+      if (!paymentDetails.insuranceProvider || paymentDetails.insuranceProvider.trim() === '') {
         setPaymentError("Please enter insurance provider");
         return false;
       }
-      if (!paymentDetails.insuranceId) {
+      if (!paymentDetails.insuranceId || paymentDetails.insuranceId.trim() === '') {
         setPaymentError("Please enter insurance ID");
         return false;
       }
@@ -231,114 +284,115 @@ const PaymentPage = () => {
     return true;
   };
 
-  // Process payment and book appointment
-  const processPaymentAndBook = async () => {
-    if (!validatePaymentDetails()) {
-      return false;
-    }
+  // Process payment and book
+// Process payment and book
+const processPaymentAndBook = async () => {
+  if (!validatePaymentDetails()) {
+    return false;
+  }
 
-    if (!userId) {
-      setPaymentError("Please log in to complete payment.");
-      return false;
-    }
+  if (!userId) {
+    setPaymentError("Please log in to complete payment.");
+    return false;
+  }
 
-    setIsProcessingPayment(true);
-    setPaymentError("");
+  setIsProcessingPayment(true);
+  setPaymentError("");
 
-    try {
-      // Simulate API call to payment gateway
-      await new Promise((resolve, reject) => {
-        setTimeout(() => {
-          // Simulate 90% success rate
-          if (Math.random() > 0.1) {
-            resolve();
-          } else {
-            reject(new Error("Payment processing failed. Please try again."));
-          }
-        }, 3000);
-      });
+  try {
+    console.log('🔍 AppointmentData:', appointmentData);
+    console.log('🔍 consultationType from appointmentData:', appointmentData?.consultationType);
+    console.log('🔍 timeSlot from appointmentData:', appointmentData?.timeSlot);
 
-      // Payment successful, now book the appointment
-      const appointmentPayload = {
-        userId: userId,
-        doctorId: id,
-        doctorName: `Dr. ${doctor.firstName} ${doctor.lastName}`,
-        doctorSpecialization: doctor.specialization,
-        patientDetails: appointmentData.patientDetails,
-        appointmentDate: appointmentData.appointmentDate,
-        timeSlot: appointmentData.timeSlot,
-        timeSlotId: appointmentData.timeSlotId,
-        appointmentNumber: appointmentData.appointmentNumber,
-        consultationFee: doctor.price,
-        payment: {
-          method: paymentMethod,
-          amount: doctor.price,
-          status: 'paid',
-          transactionId: `TXN${Date.now()}`,
-          details: paymentDetails
-        }
-      };
-
-      console.log('Booking appointment with payment:', appointmentPayload);
-
-      const response = await axios.post(
-        "http://localhost:5000/api/appointments",
-        appointmentPayload,
-        {
-          timeout: 10000,
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      if (response.status === 201) {
-        setPaymentSuccess(true);
-        return true;
-      } else {
-        throw new Error("Failed to book appointment after payment.");
+    // Prepare appointment payload - FIXED: consultationType from appointmentData
+    const appointmentPayload = {
+      userId: userId,
+      doctorId: id,
+      doctorName: `Dr. ${doctor?.firstName || ''} ${doctor?.lastName || ''}`.trim(),
+      doctorSpecialization: doctor?.specialization || '',
+      consultationType: appointmentData?.consultationType || appointmentData?.timeSlot?.consultationType || 'physical', // FIXED: Get consultationType from correct place
+      price: doctor?.price || 0,
+      patientDetails: {
+        fullName: appointmentData?.patientDetails?.fullName || '',
+        email: appointmentData?.patientDetails?.email || '',
+        phoneNumber: appointmentData?.patientDetails?.phoneNumber || '',
+        medicalConcern: appointmentData?.patientDetails?.medicalConcern || ''
+      },
+      appointmentDate: appointmentData?.appointmentDate || new Date().toISOString(),
+      timeSlot: {
+        day: appointmentData?.timeSlot?.day || new Date(appointmentData?.appointmentDate).toLocaleDateString('en-US', { weekday: 'long' }) || '',
+        startTime: appointmentData?.timeSlot?.startTime || '',
+        endTime: appointmentData?.timeSlot?.endTime || '',
+        consultationType: appointmentData?.timeSlot?.consultationType || appointmentData?.consultationType || 'physical'
+      },
+      timeSlotId: appointmentData?.timeSlotId || '',
+      appointmentNumber: String(appointmentData?.appointmentNumber || `APT${Date.now()}`),
+      payment: {
+        method: paymentMethod,
+        amount: doctor?.price || 0,
+        status: paymentMethod === 'cash' ? 'pending' : 'paid',
+        transactionId: paymentMethod === 'cash' ? `CASH${Date.now()}` : `TXN${Date.now()}`,
+        details: paymentMethod === 'cash' ? {} : paymentDetails
       }
+    };
 
-    } catch (error) {
-      console.error("Error processing payment and booking:", error);
-      
-      if (error.response?.status === 409) {
-        setPaymentError("This time slot is no longer available. Please go back and choose another slot.");
-      } else if (error.response?.status === 400) {
-        setPaymentError("Invalid appointment data. Please start over.");
-      } else {
-        setPaymentError(error.message || "Payment processing failed. Please try again.");
+    console.log('📤 Sending appointment payload:', JSON.stringify(appointmentPayload, null, 2));
+
+    const response = await axios.post(
+      "http://localhost:5000/api/appointments",
+      appointmentPayload,
+      {
+        headers: {
+          'Content-Type': 'application/json'
+        }
       }
-      return false;
-    } finally {
-      setIsProcessingPayment(false);
-    }
-  };
+    );
 
-  const handlePaymentSubmit = async (e) => {
-    e.preventDefault();
-    
-    const success = await processPaymentAndBook();
-    
-    if (success) {
-      // Navigate to confirmation page with updated appointment data
+    console.log('✅ Response:', response.data);
+
+    if (response.status === 201 || response.status === 200) {
+      setPaymentSuccess(true);
       navigate("/appointment-confirmation", {
         state: {
-          appointment: {
-            ...appointmentData,
-            payment: {
-              method: paymentMethod,
-              amount: doctor.price,
-              status: 'paid',
-              transactionId: `TXN${Date.now()}`,
-              details: paymentDetails
-            }
-          },
+          appointment: appointmentPayload,
           doctor,
           paymentSuccess: true
         }
       });
+      return true;
+    } else {
+      throw new Error("Failed to book appointment");
     }
+
+  } catch (error) {
+    console.error('❌ Error details:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    });
+    
+    let errorMessage = "Payment processing failed. Please try again.";
+    
+    if (error.response?.status === 409) {
+      errorMessage = "This time slot is no longer available. Please go back and choose another slot.";
+    } else if (error.response?.status === 400) {
+      errorMessage = error.response.data?.error || "Invalid appointment data. Please check all fields.";
+    } else if (error.response?.data?.error) {
+      errorMessage = error.response.data.error;
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    setPaymentError(errorMessage);
+    return false;
+  } finally {
+    setIsProcessingPayment(false);
+  }
+};
+
+  const handlePaymentSubmit = async (e) => {
+    e.preventDefault();
+    await processPaymentAndBook();
   };
 
   const handleBackToBooking = () => {
@@ -366,7 +420,7 @@ const PaymentPage = () => {
           placeholder="1234 5678 9012 3456"
           maxLength={19}
           className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200"
-          required
+          required={paymentMethod === 'card'}
         />
       </div>
       
@@ -384,7 +438,7 @@ const PaymentPage = () => {
             placeholder="MM/YY"
             maxLength={5}
             className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200"
-            required
+            required={paymentMethod === 'card'}
           />
         </div>
         
@@ -393,14 +447,15 @@ const PaymentPage = () => {
             CVV <span className="text-red-500">*</span>
           </label>
           <input
+            ref={cvvRef}
             type="text"
             name="cvv"
             value={paymentDetails.cvv}
-            onChange={handlePaymentInputChange}
+            onChange={handleCvvChange}
             placeholder="123"
             maxLength={4}
             className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200"
-            required
+            required={paymentMethod === 'card'}
           />
         </div>
       </div>
@@ -410,13 +465,14 @@ const PaymentPage = () => {
           Card Holder Name <span className="text-red-500">*</span>
         </label>
         <input
+          ref={cardHolderRef}
           type="text"
           name="cardHolder"
           value={paymentDetails.cardHolder}
-          onChange={handlePaymentInputChange}
+          onChange={handleCardHolderChange}
           placeholder="John Doe"
           className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200"
-          required
+          required={paymentMethod === 'card'}
         />
       </div>
       
@@ -436,13 +492,14 @@ const PaymentPage = () => {
           UPI ID <span className="text-red-500">*</span>
         </label>
         <input
+          ref={upiIdRef}
           type="text"
           name="upiId"
           value={paymentDetails.upiId}
-          onChange={handlePaymentInputChange}
+          onChange={handleUpiIdChange}
           placeholder="yourname@upi"
           className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200"
-          required
+          required={paymentMethod === 'upi'}
         />
       </div>
       
@@ -461,13 +518,14 @@ const PaymentPage = () => {
           Insurance Provider <span className="text-red-500">*</span>
         </label>
         <input
+          ref={insuranceProviderRef}
           type="text"
           name="insuranceProvider"
           value={paymentDetails.insuranceProvider}
-          onChange={handlePaymentInputChange}
+          onChange={handleInsuranceProviderChange}
           placeholder="e.g., Blue Cross, Aetna, etc."
           className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200"
-          required
+          required={paymentMethod === 'insurance'}
         />
       </div>
       
@@ -476,13 +534,14 @@ const PaymentPage = () => {
           Insurance ID <span className="text-red-500">*</span>
         </label>
         <input
+          ref={insuranceIdRef}
           type="text"
           name="insuranceId"
           value={paymentDetails.insuranceId}
-          onChange={handlePaymentInputChange}
+          onChange={handleInsuranceIdChange}
           placeholder="Your insurance identification number"
           className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200"
-          required
+          required={paymentMethod === 'insurance'}
         />
       </div>
       
@@ -491,10 +550,11 @@ const PaymentPage = () => {
           Policy Number
         </label>
         <input
+          ref={policyNumberRef}
           type="text"
           name="policyNumber"
           value={paymentDetails.policyNumber}
-          onChange={handlePaymentInputChange}
+          onChange={handlePolicyNumberChange}
           placeholder="Policy number (if different)"
           className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200"
         />
@@ -509,6 +569,7 @@ const PaymentPage = () => {
   );
 
   const formatTime = (timeString) => {
+    if (!timeString) return '';
     return new Date(`2000-01-01T${timeString}`).toLocaleTimeString('en-US', {
       hour: '2-digit',
       minute: '2-digit',
@@ -611,7 +672,7 @@ const PaymentPage = () => {
                 <div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-4">Select Payment Method</h3>
                   
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
                     <button
                       type="button"
                       onClick={() => setPaymentMethod('card')}
@@ -656,6 +717,21 @@ const PaymentPage = () => {
                       </svg>
                       <span className="text-sm font-medium">Insurance</span>
                     </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('cash')}
+                      className={`p-4 border rounded-lg text-center transition duration-200 ${
+                        paymentMethod === 'cash'
+                          ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
+                          : 'border-gray-300 hover:border-blue-300 hover:bg-blue-25'
+                      }`}
+                    >
+                      <svg className="w-8 h-8 mx-auto mb-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="text-sm font-medium">Cash</span>
+                    </button>
                   </div>
 
                   {/* Payment Form */}
@@ -663,6 +739,13 @@ const PaymentPage = () => {
                     {paymentMethod === 'card' && <CreditCardForm />}
                     {paymentMethod === 'upi' && <UPIForm />}
                     {paymentMethod === 'insurance' && <InsuranceForm />}
+                    {paymentMethod === 'cash' && (
+                      <div className="text-center py-4">
+                        <p className="text-gray-600">
+                          You will pay {formatPrice(doctor.price)} in cash at the hospital.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -687,10 +770,10 @@ const PaymentPage = () => {
                   {isProcessingPayment ? (
                     <div className="flex items-center justify-center">
                       <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white mr-3"></div>
-                      Processing Payment...
+                      Processing...
                     </div>
                   ) : (
-                    `Pay ${formatPrice(doctor.price)} Now`
+                    `Confirm & Pay ${formatPrice(doctor.price)}`
                   )}
                 </button>
 

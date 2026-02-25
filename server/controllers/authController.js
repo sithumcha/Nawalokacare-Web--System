@@ -345,11 +345,7 @@ exports.updateProfile = async (req, res) => {
 };
 
 
-
-
-
-
-// Get all users (Admin only)
+// Get all users 
 exports.getAllUsers = async (req, res) => {
   try {
     const users = await User.find().select("-password").sort({ createdAt: -1 });
@@ -366,7 +362,7 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
-// Delete user
+
 // Delete user
 exports.deleteUser = async (req, res) => {
   try {

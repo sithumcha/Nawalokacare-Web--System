@@ -698,7 +698,7 @@ const Register = () => {
                     { label: "Specialization *", name: "specialization", type: "text", placeholder: "e.g., Cardiologist", required: true },
                     { label: "Department *", name: "department", type: "text", placeholder: "e.g., Cardiology", required: true },
                     { label: "Medical License Number *", name: "medicalLicenseNumber", type: "text", placeholder: "Enter license number", required: true },
-                    { label: "Consultation Price ($) *", name: "price", type: "number", placeholder: "e.g., 100.00", min: "0", step: "0.01", required: true },
+                    { label: "Consultation Price (Rs.) *", name: "price", type: "number", placeholder: "e.g., 100.00", min: "0", step: "0.01", required: true },
                   ].map((field) => (
                     <div key={field.name}>
                       <label className="block text-sm font-medium text-gray-700 mb-2">

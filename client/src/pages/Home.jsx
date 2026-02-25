@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
+import Chatbot from '../pages/Chatbot';
 import { 
   FaStethoscope, 
   FaUserMd, 
@@ -327,7 +329,7 @@ const Home = () => {
                   Book Appointment
                 </Link>
                 <Link
-                  to="/doctors"
+                  to="/list"
                   className="border-2 border-white text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-white hover:text-blue-600 transition-all duration-300 flex items-center"
                 >
                   <FaUserMd className="mr-3" />
@@ -513,7 +515,7 @@ const Home = () => {
                 <FaHospital className="text-2xl" />
               </div>
               <div className="text-4xl lg:text-5xl font-bold text-gray-900 mb-2">
-                {stats.departments}+
+                {}15+
               </div>
               <div className="text-gray-600 font-semibold">
                 Departments
@@ -675,134 +677,48 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Emergency Banner */}
-      <section 
-        className={`py-12 transition-all duration-300 ${isEmergencyHovered ? 'bg-red-700' : 'bg-red-600'}`}
-        onMouseEnter={() => setIsEmergencyHovered(true)}
-        onMouseLeave={() => setIsEmergencyHovered(false)}
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col lg:flex-row items-center justify-between">
-            <div className="text-center lg:text-left mb-6 lg:mb-0">
-              <div className="flex items-center justify-center lg:justify-start mb-4">
-                <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center mr-4">
-                  <FaAmbulance className="text-2xl text-white" />
-                </div>
-                <h3 className="text-2xl font-bold">Emergency Medical Care</h3>
-              </div>
-              <p className="text-red-100 max-w-xl">Available 24/7 for urgent medical needs. Our emergency team is always ready.</p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <a
-                href="tel:911"
-                className="bg-white text-red-600 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-red-50 hover:shadow-xl transition-all duration-300 flex items-center justify-center"
-              >
-                <FaPhoneAlt className="mr-3 animate-pulse" />
-                Call 911
-              </a>
-              <a
-                href="tel:+1234567890"
-                className="border-2 border-white text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-white hover:text-red-600 transition-all duration-300 flex items-center justify-center"
-              >
-                <FaAmbulance className="mr-3" />
-                Emergency Line
-              </a>
-            </div>
-          </div>
-        </div>
-      </section>
+     
+     
 
-      {/* Testimonials Section */}
-      <section className="py-20 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Patient Testimonials
-            </h2>
-            <p className="text-xl text-gray-600">
-              Hear from our patients about their healthcare journey
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <div 
-                key={index} 
-                className="bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200"
-              >
-                <div className="flex items-center mb-4">
-                  <div className="flex text-yellow-400 mr-3">
-                    {[...Array(testimonial.rating)].map((_, i) => (
-                      <FaStar key={i} className="fill-current" />
-                    ))}
-                  </div>
-                  <span className="text-gray-500 text-sm">{testimonial.date}</span>
-                </div>
-                <p className="text-gray-600 mb-6 italic text-lg leading-relaxed">"{testimonial.content}"</p>
-                <div className="flex items-center">
-                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mr-4">
-                    <span className="text-blue-600 font-semibold">
-                      {testimonial.name.split(' ').map(n => n[0]).join('')}
-                    </span>
-                  </div>
-                  <div>
-                    <div className="font-semibold text-gray-900">{testimonial.name}</div>
-                    <div className="text-gray-500">{testimonial.role}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="text-center mt-12">
-            <Link
-              to="/testimonials"
-              className="inline-flex items-center text-blue-600 font-semibold hover:text-blue-700"
-            >
-              Read More Stories
-              <FaArrowRight className="ml-2" />
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
+      {/* CTA Section - Home Page Colors */}
       <section className="relative py-20 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-blue-800"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-[#2563eb] to-[#1d4ed8]"></div>
         <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white rounded-full -translate-y-32 translate-x-32"></div>
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-white rounded-full translate-y-48 -translate-x-48"></div>
+          <div className="absolute top-0 right-0 w-64 h-64 bg-[#dbeafe] rounded-full -translate-y-32 translate-x-32"></div>
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#dbeafe] rounded-full translate-y-48 -translate-x-48"></div>
         </div>
         
         <div className="relative max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
           <h2 className="text-4xl font-bold text-white mb-6">
             Start Your Health Journey Today
           </h2>
-          <p className="text-xl text-blue-100 mb-8">
+          <p className="text-xl text-[#dbeafe] mb-8">
             Join thousands of patients who trust us for their healthcare needs. 
             Book your appointment today and experience the difference.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               to="/appointments"
-              className="bg-white text-blue-600 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-blue-50 hover:shadow-xl transition-all duration-300 flex items-center justify-center"
+              className="bg-white text-[#2563eb] px-8 py-4 rounded-lg font-semibold text-lg hover:bg-[#dbeafe] hover:shadow-xl transition-all duration-300 flex items-center justify-center"
             >
               <FaCalendarAlt className="mr-3" />
               Book Appointment
             </Link>
             <Link
               to="/contact"
-              className="border-2 border-white text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-white hover:text-blue-600 transition-all duration-300 flex items-center justify-center"
+              className="border-2 border-white text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-white hover:text-[#2563eb] transition-all duration-300 flex items-center justify-center"
             >
               <FaPhoneAlt className="mr-3" />
               Contact Us
             </Link>
           </div>
-          <p className="text-blue-200 mt-6">
-            Need help? Call us at <span className="font-semibold">1-800-HEALTH</span>
+          <p className="text-[#dbeafe] mt-6">
+            Need help? Call us at <span className="font-semibold text-white">1-800-HEALTH</span>
           </p>
         </div>
       </section>
+      <Footer />
+      <Chatbot/>
     </div>
   );
 };

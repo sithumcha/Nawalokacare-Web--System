@@ -370,6 +370,16 @@ const appointmentSchema = new mongoose.Schema(
       required: true,
       default: "physical"
     },
+
+
+    
+        meetingLink: {
+         type: String,
+          default: null
+          },
+
+
+
     price: {
       type: Number,
       required: true

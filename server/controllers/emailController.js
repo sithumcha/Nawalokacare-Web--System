@@ -37,7 +37,11 @@ const sendConsultationLinkEmail = async (req, res) => {
 
     // Email template
     const mailOptions = {
-      from: `"Medical Consultation" <${process.env.SMTP_USER}>`,
+      // from: `"Medical Consultation" <${process.env.SMTP_USER}>`,
+      from: {
+  name: process.env.EMAIL_NAME || 'Naawloka Hospital',
+  address: process.env.EMAIL_FROM || 'sithumchanukasandaruwan2002@gmail.com'
+},
       to: to,
       replyTo: process.env.REPLY_TO_EMAIL || process.env.SMTP_USER,
       subject: `Online Consultation Link - Dr. ${doctorName}`,
@@ -214,7 +218,12 @@ const sendAppointmentConfirmation = async (req, res) => {
     } = req.body;
 
     const mailOptions = {
-      from: `"Medical Consultation" <${process.env.SMTP_USER}>`,
+      // from: `"Medical Consultation" <${process.env.SMTP_USER}>`,
+      // ✅ FIXED: Use verified sender here too
+from: {
+  name: process.env.EMAIL_NAME || 'Naawloka Hospital',
+  address: process.env.EMAIL_FROM || 'sithumchanukasandaruwan2002@gmail.com'
+},
       to: to,
       subject: `Appointment ${status} - Dr. ${doctorName}`,
       html: `

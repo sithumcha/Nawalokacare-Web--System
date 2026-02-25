@@ -1,55 +1,40 @@
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { GoogleGenAI } = require("@google/genai");
+const { buildHospitalContext } = require("../utils/contextBuilder");
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const chatWithGemini = async (message, history = []) => {
-  try {
-    const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.0-flash",
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 500,
-      }
-    });
+  const dynamicContext = await buildHospitalContext(message);
 
-    // Format history for Gemini
-    let formattedHistory = [];
-    if (history && history.length > 0) {
-      formattedHistory = history.map(msg => ({
-        role: msg.role === 'user' ? 'user' : 'model',
-        parts: [{ text: msg.content }]
-      }));
-    }
+  const SYSTEM = `
+You are a helpful hospital assistant for a hospital booking system.
+Use ONLY the HOSPITAL DATA given below.
+If a user asks for something not in the data, say you don't have that information.
+Keep replies short, friendly, and actionable.
 
-    // System prompt එක පළමු message එකට add කරන්න
-    let finalMessage = message;
-    if (!history || history.length === 0) {
-      finalMessage = `You are a helpful hospital assistant. Information:
-- Hours: Mon-Fri 9am-6pm, Sat 9am-2pm, Sun closed
-- Emergency: 24/7
-- Appointment: Online/Phone/Walk-in
-- Contact: (555) 123-4567
+HOSPITAL DATA:
+${dynamicContext}
+`.trim();
 
-Be friendly and helpful. Keep responses short.
+  const contents = [
+    ...(history || []).map(m => ({
+      role: m.role === "user" ? "user" : "model",
+      parts: [{ text: m.content }],
+    })),
+    { role: "user", parts: [{ text: message }] },
+  ];
 
-User: ${message}`;
-    }
+  const resp = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents,
+    config: {
+      systemInstruction: SYSTEM,
+      temperature: 0.4,
+      maxOutputTokens: 500,
+    },
+  });
 
-    const chat = model.startChat({
-      history: formattedHistory,
-      generationConfig: {
-        maxOutputTokens: 500,
-      },
-    });
-
-    const result = await chat.sendMessage(finalMessage);
-    const response = await result.response;
-    return response.text();
-
-  } catch (error) {
-    console.error('Gemini API Error:', error);
-    throw error;
-  }
+  return resp.text;
 };
 
 module.exports = { chatWithGemini };

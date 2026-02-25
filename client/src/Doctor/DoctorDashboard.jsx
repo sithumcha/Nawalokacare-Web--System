@@ -382,7 +382,7 @@ const DoctorDashboard = () => {
                   </button>
                 </div>
                 <div className="divide-y divide-gray-200">
-                  {recentAppointments.length > 0 ? (
+                  {/* {recentAppointments.length > 0 ? (
                     recentAppointments.map((appointment) => (
                       <div key={appointment._id || appointment.id} className="px-4 py-4 sm:px-6 hover:bg-gray-50 transition duration-150">
                         <div className="flex items-center justify-between">
@@ -414,7 +414,7 @@ const DoctorDashboard = () => {
                         </div>
                       </div>
                     ))
-                  ) : (
+                  ) : ( */}
                     <div className="px-4 py-8 text-center">
                       <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -422,7 +422,7 @@ const DoctorDashboard = () => {
                       <h3 className="mt-2 text-sm font-medium text-gray-900">No appointments</h3>
                       <p className="mt-1 text-sm text-gray-500">You don't have any appointments scheduled for today.</p>
                     </div>
-                  )}
+                  
                 </div>
               </div>
             </div>

@@ -487,11 +487,11 @@ const DoctorProfile = () => {
 
                     <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                       <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-2">
-                        Consultation Fee (USD) *
+                        Consultation Fee (Rs) *
                       </label>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <span className="text-gray-500 sm:text-sm">$</span>
+                          <span className="text-gray-500 sm:text-sm">Rs. </span>
                         </div>
                         <input
                           type="number"
@@ -511,7 +511,7 @@ const DoctorProfile = () => {
                       </p>
                       {formData.price && (
                         <p className="mt-1 text-sm font-medium text-green-600">
-                          Current display: {formatPrice(formData.price)}
+                          Current display: Rs.{ (formData.price)}
                         </p>
                       )}
                     </div>

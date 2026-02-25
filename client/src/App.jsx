@@ -29,12 +29,14 @@ import DoctorChat from "./Doctor/DoctorChat";
 import MedicationsPage from "./pages/MedicationsPage";
 import ServicesPage from "./components/ServicesPage";
 import Doctor from "./Doctor/DoctorFeedbackView"; 
-
+import About from "./components/About";
 import AdminLogin  from "./admin/AdminLogin";
 import AdminRegister from "./admin/AdminRegister";
 import AdminDashboard from "./admin/DashboardPage";
 import DoctorsAppointmentsPage from "./admin/DoctorsAppointmentsPage";
 import Chatbot from "./pages/Chatbot";
+import Contact from "./components/Contact";
+import Footer from "./components/Footer";
 
 
 
@@ -79,13 +81,14 @@ const App = () => {
         <Route path="/medications" element={<MedicationsPage />} />
         <Route path="/services" element={<ServicesPage />} /> 
         <Route path="/doctor/feedbacks/:doctorId" element={<Doctor />} />
-
-
-         <Route path="/admin/login" element={<AdminLogin />} />
-          <Route path="/admin/register" element={<AdminRegister />} />
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
-          <Route path="/admin/appointments" element={<DoctorsAppointmentsPage />} />
-          <Route path="/chatbot" element={<Chatbot />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route path="/admin/register" element={<AdminRegister />} />
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        <Route path="/admin/appointments" element={<DoctorsAppointmentsPage />} />
+        <Route path="/chatbot" element={<Chatbot />} />
+        <Route path="/footer" element={<Footer />} />
 
 
 

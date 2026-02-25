@@ -72,4 +72,13 @@ router.get('/send/reminders', appointmentController.sendReminderEmails);
 // Test email endpoint
 router.post('/test-email', appointmentController.testEmail);
 
+
+
+
+
+// Update meeting link for online consultation
+router.put('/:id/meeting-link', appointmentController.updateMeetingLink);
+
+
+
 module.exports = router;
