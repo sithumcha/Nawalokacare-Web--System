@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { FiUser, FiMail, FiLock, FiCalendar, FiMapPin, FiHome, FiGlobe, FiUserPlus, FiAlertCircle, FiCheckCircle } from 'react-icons/fi';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -13,7 +15,7 @@ const Register = () => {
       street: '',
       city: '',
       state: '',
-      country: 'US',
+      country: 'Sri Lanka',
       zipCode: ''
     }
   });
@@ -21,6 +23,48 @@ const Register = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const styleSheet = document.createElement("style");
+    styleSheet.textContent = `
+      @keyframes slideUp {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      input:focus, select:focus {
+        border-color: #4f46e5 !important;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1) !important;
+        outline: none;
+      }
+      
+      .register-button:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(79, 70, 229, 0.6) !important;
+      }
+      
+      a:hover {
+        color: #4f46e5 !important;
+        text-decoration: underline !important;
+      }
+    `;
+    document.head.appendChild(styleSheet);
+
+    return () => {
+      document.head.removeChild(styleSheet);
+    };
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -96,97 +140,148 @@ const Register = () => {
 
   return (
     <div style={styles.container}>
+      <div style={styles.backgroundPattern}></div>
+      
       <div style={styles.card}>
+        <div style={styles.logoContainer}>
+          <div style={styles.logo}>
+            <FiUserPlus size={40} color="#4f46e5" />
+          </div>
+          <h1 style={styles.brandName}>NawalokaCare</h1>
+        </div>
+
         <h2 style={styles.title}>Create Account</h2>
+        <p style={styles.subtitle}>Join us to access healthcare services</p>
         
-        {error && <div style={styles.error}>{error}</div>}
-        {success && <div style={styles.success}>{success}</div>}
+        {error && (
+          <div style={styles.errorContainer}>
+            <FiAlertCircle size={20} style={styles.errorIcon} />
+            <span style={styles.errorText}>{error}</span>
+          </div>
+        )}
+        
+        {success && (
+          <div style={styles.successContainer}>
+            <FiCheckCircle size={20} style={styles.successIcon} />
+            <span style={styles.successText}>{success}</span>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} style={styles.form}>
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Username *</label>
-            <input
-              type="text"
-              name="username"
-              value={formData.username}
-              onChange={handleChange}
-              required
-              style={styles.input}
-              placeholder="Enter username"
-            />
+          <div style={styles.formRow}>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>
+                <FiUser style={styles.inputIcon} />
+                Username *
+              </label>
+              <input
+                type="text"
+                name="username"
+                value={formData.username}
+                onChange={handleChange}
+                required
+                style={styles.input}
+                placeholder="Enter username"
+              />
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>
+                <FiMail style={styles.inputIcon} />
+                Email *
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                required
+                style={styles.input}
+                placeholder="Enter email"
+              />
+            </div>
           </div>
 
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Email *</label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-              style={styles.input}
-              placeholder="Enter email"
-            />
+          <div style={styles.formRow}>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>
+                <FiLock style={styles.inputIcon} />
+                Password *
+              </label>
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                minLength="6"
+                style={styles.input}
+                placeholder="Min. 6 characters"
+              />
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>
+                <FiLock style={styles.inputIcon} />
+                Confirm Password *
+              </label>
+              <input
+                type="password"
+                name="confirmPassword"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                required
+                style={styles.input}
+                placeholder="Confirm password"
+              />
+            </div>
           </div>
 
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Password *</label>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              minLength="6"
-              style={styles.input}
-              placeholder="Enter password (min. 6 characters)"
-            />
-          </div>
+          <div style={styles.formRow}>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>
+                <FiUser style={styles.inputIcon} />
+                Gender
+              </label>
+              <select
+                name="gender"
+                value={formData.gender}
+                onChange={handleChange}
+                style={styles.input}
+              >
+                <option value="prefer-not-to-say">Prefer not to say</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
 
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Confirm Password *</label>
-            <input
-              type="password"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              required
-              style={styles.input}
-              placeholder="Confirm password"
-            />
-          </div>
-
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Gender</label>
-            <select
-              name="gender"
-              value={formData.gender}
-              onChange={handleChange}
-              style={styles.input}
-            >
-              <option value="prefer-not-to-say">Prefer not to say</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Birthdate</label>
-            <input
-              type="date"
-              name="birthdate"
-              value={formData.birthdate}
-              onChange={handleChange}
-              style={styles.input}
-            />
+            <div style={styles.formGroup}>
+              <label style={styles.label}>
+                <FiCalendar style={styles.inputIcon} />
+                Birthdate
+              </label>
+              <input
+                type="date"
+                name="birthdate"
+                value={formData.birthdate}
+                onChange={handleChange}
+                style={styles.input}
+              />
+            </div>
           </div>
 
           <div style={styles.addressSection}>
-            <h3 style={styles.sectionTitle}>Address (Optional)</h3>
+            <h3 style={styles.sectionTitle}>
+              <FiMapPin style={styles.sectionIcon} />
+              Address Information (Optional)
+            </h3>
             
             <div style={styles.formGroup}>
-              <label style={styles.label}>Street</label>
+              <label style={styles.label}>
+                <FiHome style={styles.inputIcon} />
+                Street
+              </label>
               <input
                 type="text"
                 name="address.street"
@@ -197,7 +292,7 @@ const Register = () => {
               />
             </div>
 
-            <div style={styles.row}>
+            <div style={styles.formRow}>
               <div style={styles.formGroup}>
                 <label style={styles.label}>City</label>
                 <input
@@ -223,7 +318,7 @@ const Register = () => {
               </div>
             </div>
 
-            <div style={styles.row}>
+            <div style={styles.formRow}>
               <div style={styles.formGroup}>
                 <label style={styles.label}>Zip Code</label>
                 <input
@@ -237,7 +332,10 @@ const Register = () => {
               </div>
 
               <div style={styles.formGroup}>
-                <label style={styles.label}>Country</label>
+                <label style={styles.label}>
+                  <FiGlobe style={styles.inputIcon} />
+                  Country
+                </label>
                 <input
                   type="text"
                   name="address.country"
@@ -253,17 +351,40 @@ const Register = () => {
           <button
             type="submit"
             disabled={loading}
+            className="register-button"
             style={{
               ...styles.button,
-              backgroundColor: loading ? '#ccc' : '#007bff'
+              ...(loading ? styles.buttonDisabled : {})
             }}
           >
-            {loading ? 'Creating Account...' : 'Register'}
+            {loading ? (
+              <div style={styles.loader}>
+                <div style={styles.spinner}></div>
+                <span>Creating Account...</span>
+              </div>
+            ) : (
+              'Create Account'
+            )}
           </button>
         </form>
 
+        <div style={styles.divider}>
+          <span style={styles.dividerLine}></span>
+          <span style={styles.dividerText}>OR</span>
+          <span style={styles.dividerLine}></span>
+        </div>
+
         <p style={styles.linkText}>
-          Already have an account? <Link to="/login" style={styles.link}>Login here</Link>
+          Already have an account?{' '}
+          <Link to="/login" style={styles.link}>
+            Sign in here
+          </Link>
+        </p>
+
+        <p style={styles.terms}>
+          By creating an account, you agree to our{' '}
+          <Link to="/terms" style={styles.termsLink}>Terms</Link> and{' '}
+          <Link to="/privacy" style={styles.termsLink}>Privacy Policy</Link>
         </p>
       </div>
     </div>
@@ -276,94 +397,232 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f5f5f5',
-    padding: '20px'
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    padding: '20px',
+    position: 'relative',
+    overflow: 'hidden'
+  },
+  backgroundPattern: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundImage: 'radial-gradient(circle at 25% 25%, rgba(255,255,255,0.1) 1px, transparent 1px)',
+    backgroundSize: '30px 30px',
+    pointerEvents: 'none'
   },
   card: {
-    backgroundColor: 'white',
-    padding: '40px',
-    borderRadius: '10px',
-    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    padding: '48px',
+    borderRadius: '24px',
+    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
     width: '100%',
-    maxWidth: '500px'
+    maxWidth: '700px',
+    backdropFilter: 'blur(10px)',
+    border: '1px solid rgba(255, 255, 255, 0.2)',
+    position: 'relative',
+    zIndex: 1,
+    animation: 'slideUp 0.5s ease-out'
+  },
+  logoContainer: {
+    textAlign: 'center',
+    marginBottom: '32px'
+  },
+  logo: {
+    display: 'inline-block',
+    padding: '12px',
+    backgroundColor: '#f5f5f5',
+    borderRadius: '16px',
+    marginBottom: '16px'
+  },
+  brandName: {
+    fontSize: '28px',
+    fontWeight: '700',
+    color: '#1e293b',
+    margin: '0',
+    letterSpacing: '-0.5px'
   },
   title: {
     textAlign: 'center',
-    marginBottom: '30px',
-    color: '#333',
-    fontSize: '28px'
+    marginBottom: '8px',
+    color: '#1e293b',
+    fontSize: '32px',
+    fontWeight: '700',
+    lineHeight: '1.2'
+  },
+  subtitle: {
+    textAlign: 'center',
+    marginBottom: '32px',
+    color: '#64748b',
+    fontSize: '16px',
+    lineHeight: '1.5'
+  },
+  errorContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    backgroundColor: '#fef2f2',
+    color: '#991b1b',
+    padding: '14px 16px',
+    borderRadius: '12px',
+    marginBottom: '24px',
+    border: '1px solid #fee2e2'
+  },
+  successContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    backgroundColor: '#f0fdf4',
+    color: '#166534',
+    padding: '14px 16px',
+    borderRadius: '12px',
+    marginBottom: '24px',
+    border: '1px solid #dcfce7'
+  },
+  errorIcon: {
+    flexShrink: 0,
+    color: '#dc2626'
+  },
+  successIcon: {
+    flexShrink: 0,
+    color: '#16a34a'
+  },
+  errorText: {
+    fontSize: '14px',
+    fontWeight: '500'
+  },
+  successText: {
+    fontSize: '14px',
+    fontWeight: '500'
   },
   form: {
     width: '100%'
   },
+  formRow: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '16px',
+    marginBottom: '16px'
+  },
   formGroup: {
-    marginBottom: '20px'
+    marginBottom: '16px',
+    flex: 1
   },
   label: {
-    display: 'block',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
     marginBottom: '8px',
     fontWeight: '600',
-    color: '#555'
+    color: '#1e293b',
+    fontSize: '14px'
+  },
+  inputIcon: {
+    color: '#4f46e5'
+  },
+  sectionIcon: {
+    color: '#4f46e5',
+    marginRight: '8px',
+    verticalAlign: 'middle'
   },
   input: {
     width: '100%',
-    padding: '12px',
-    border: '1px solid #ddd',
-    borderRadius: '5px',
-    fontSize: '16px',
-    boxSizing: 'border-box'
+    padding: '12px 14px',
+    border: '2px solid #e2e8f0',
+    borderRadius: '10px',
+    fontSize: '14px',
+    boxSizing: 'border-box',
+    transition: 'all 0.3s ease',
+    outline: 'none',
+    backgroundColor: '#f8fafc'
   },
   addressSection: {
     marginBottom: '25px',
     padding: '20px',
-    border: '1px solid #e9ecef',
-    borderRadius: '8px',
-    backgroundColor: '#f8f9fa'
+    border: '1px solid #e2e8f0',
+    borderRadius: '12px',
+    backgroundColor: '#f8fafc'
   },
   sectionTitle: {
-    marginBottom: '15px',
-    color: '#495057',
-    fontSize: '18px'
-  },
-  row: {
+    marginBottom: '20px',
+    color: '#1e293b',
+    fontSize: '18px',
+    fontWeight: '600',
     display: 'flex',
-    gap: '15px'
+    alignItems: 'center'
   },
   button: {
     width: '100%',
-    padding: '15px',
+    padding: '16px',
     color: 'white',
     border: 'none',
-    borderRadius: '5px',
+    borderRadius: '12px',
     fontSize: '16px',
     fontWeight: '600',
     cursor: 'pointer',
-    marginBottom: '20px'
+    marginBottom: '24px',
+    background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 4px 15px rgba(79, 70, 229, 0.4)'
   },
-  error: {
-    backgroundColor: '#f8d7da',
-    color: '#721c24',
-    padding: '12px',
-    borderRadius: '5px',
-    marginBottom: '20px',
-    border: '1px solid #f5c6cb'
+  buttonDisabled: {
+    background: '#94a3b8',
+    cursor: 'not-allowed',
+    boxShadow: 'none'
   },
-  success: {
-    backgroundColor: '#d4edda',
-    color: '#155724',
-    padding: '12px',
-    borderRadius: '5px',
-    marginBottom: '20px',
-    border: '1px solid #c3e6cb'
+  loader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '10px'
+  },
+  spinner: {
+    width: '20px',
+    height: '20px',
+    border: '3px solid #ffffff',
+    borderTop: '3px solid transparent',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite'
+  },
+  divider: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+    marginBottom: '24px'
+  },
+  dividerLine: {
+    flex: 1,
+    height: '1px',
+    backgroundColor: '#e2e8f0'
+  },
+  dividerText: {
+    color: '#64748b',
+    fontSize: '14px',
+    fontWeight: '500'
   },
   linkText: {
     textAlign: 'center',
-    color: '#666'
+    color: '#1e293b',
+    marginBottom: '16px',
+    fontSize: '15px'
   },
   link: {
-    color: '#007bff',
+    color: '#4f46e5',
     textDecoration: 'none',
-    fontWeight: '600'
+    fontWeight: '700',
+    transition: 'color 0.3s ease'
+  },
+  terms: {
+    textAlign: 'center',
+    color: '#64748b',
+    fontSize: '13px',
+    lineHeight: '1.5'
+  },
+  termsLink: {
+    color: '#4f46e5',
+    textDecoration: 'none',
+    fontWeight: '500'
   }
 };
 

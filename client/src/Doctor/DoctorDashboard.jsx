@@ -1,3 +1,7 @@
+
+
+
+
 // src/pages/DoctorDashboard.jsx
 import { useState, useEffect } from "react";
 import axios from "axios";
@@ -12,10 +16,36 @@ const DoctorDashboard = () => {
     pendingAppointments: 0,
     completedAppointments: 0
   });
+  
+  // නව revenue state එක
+  const [revenue, setRevenue] = useState({
+    summary: {
+      totalRevenue: 0,
+      todayRevenue: 0,
+      monthlyRevenue: 0,
+      pendingPayments: 0,
+      avgPerAppointment: 0,
+      completedCount: 0,
+      pendingCount: 0
+    },
+    breakdown: {
+      byType: {
+        online: 0,
+        physical: 0,
+        onlinePercentage: 0,
+        physicalPercentage: 0
+      },
+      monthly: []
+    },
+    recentAppointments: []
+  });
+
   const [recentAppointments, setRecentAppointments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadingRevenue, setLoadingRevenue] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const [showDropdown, setShowDropdown] = useState(false);
+  const [revenuePeriod, setRevenuePeriod] = useState('month');
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -45,6 +75,9 @@ const DoctorDashboard = () => {
         // Fetch recent appointments
         await fetchRecentAppointments(token, doctorId);
 
+        // ✅ Fetch revenue data (public endpoint - token එක නැතුව)
+        await fetchRevenue(doctorId, 'month');
+
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
         if (error.response?.status === 401) {
@@ -69,13 +102,67 @@ const DoctorDashboard = () => {
       setStats(statsResponse.data);
     } catch (error) {
       console.log("Stats endpoint not available, using mock data");
-      // Fallback mock data
       setStats({
         totalAppointments: 24,
         todayAppointments: 3,
         pendingAppointments: 8,
         completedAppointments: 16
       });
+    }
+  };
+
+  // ✅ Public revenue fetch - NO TOKEN NEEDED!
+  const fetchRevenue = async (doctorId, period = 'month') => {
+    setLoadingRevenue(true);
+    try {
+      console.log(`📊 Fetching public revenue for doctor: ${doctorId}, period: ${period}`);
+      
+      const response = await axios.get(
+        `http://localhost:5000/api/doctors/public/${doctorId}/revenue?period=${period}`
+      );
+
+      console.log("✅ Revenue API Response:", response.data);
+
+      if (response.data.success) {
+        setRevenue(response.data);
+      } else {
+        setRevenue({
+          summary: {
+            totalRevenue: 0,
+            todayRevenue: 0,
+            monthlyRevenue: 0,
+            pendingPayments: 0,
+            avgPerAppointment: 0,
+            completedCount: 0,
+            pendingCount: 0
+          },
+          breakdown: {
+            byType: { online: 0, physical: 0, onlinePercentage: 0, physicalPercentage: 0 },
+            monthly: []
+          },
+          recentAppointments: []
+        });
+      }
+    } catch (error) {
+      console.error("❌ Error fetching revenue:", error);
+      setRevenue({
+        summary: {
+          totalRevenue: 0,
+          todayRevenue: 0,
+          monthlyRevenue: 0,
+          pendingPayments: 0,
+          avgPerAppointment: 0,
+          completedCount: 0,
+          pendingCount: 0
+        },
+        breakdown: {
+          byType: { online: 0, physical: 0, onlinePercentage: 0, physicalPercentage: 0 },
+          monthly: []
+        },
+        recentAppointments: []
+      });
+    } finally {
+      setLoadingRevenue(false);
     }
   };
 
@@ -91,7 +178,6 @@ const DoctorDashboard = () => {
       setRecentAppointments(appointmentsResponse.data.slice(0, 5));
     } catch (error) {
       console.log("Appointments endpoint not available, using mock data");
-      // Fallback mock data
       setRecentAppointments([
         {
           _id: 1,
@@ -99,7 +185,8 @@ const DoctorDashboard = () => {
           date: "2024-01-15",
           time: "10:00 AM",
           status: "confirmed",
-          type: "Consultation"
+          type: "Consultation",
+          price: 5700
         },
         {
           _id: 2,
@@ -107,7 +194,8 @@ const DoctorDashboard = () => {
           date: "2024-01-15",
           time: "11:30 AM",
           status: "pending",
-          type: "Follow-up"
+          type: "Follow-up",
+          price: 5700
         },
         {
           _id: 3,
@@ -115,7 +203,8 @@ const DoctorDashboard = () => {
           date: "2024-01-15",
           time: "2:00 PM",
           status: "completed",
-          type: "Checkup"
+          type: "Checkup",
+          price: 5700
         }
       ]);
     }
@@ -125,7 +214,7 @@ const DoctorDashboard = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("doctorId");
     localStorage.removeItem("userType");
-    navigate("/login");
+    navigate("/doctor/login");
   };
 
   const goToDoctorSchedule = () => {
@@ -161,11 +250,9 @@ const DoctorDashboard = () => {
 
   const formatTime = (timeString) => {
     if (!timeString) return '';
-    // Handle both "HH:MM" and "HH:MM AM/PM" formats
     if (timeString.includes('AM') || timeString.includes('PM')) {
       return timeString;
     }
-    // Convert "HH:MM" to 12-hour format
     const [hours, minutes] = timeString.split(':');
     const hour = parseInt(hours);
     const ampm = hour >= 12 ? 'PM' : 'AM';
@@ -176,6 +263,15 @@ const DoctorDashboard = () => {
   const getInitials = (name) => {
     if (!name) return 'JD';
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-LK', {
+      style: 'currency',
+      currency: 'LKR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
   };
 
   if (isLoading) {
@@ -246,7 +342,6 @@ const DoctorDashboard = () => {
                         setShowDropdown(false);
                       }}
                       className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-
                     >
                       <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -273,7 +368,7 @@ const DoctorDashboard = () => {
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="flex space-x-8">
-            {["overview", "appointments", "patients", "schedule"].map((tab) => (
+            {["overview", "appointments", "patients", "schedule", "revenue"].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -316,58 +411,214 @@ const DoctorDashboard = () => {
             </div>
           </div>
 
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {[
-              { 
-                label: "Today's Appointments", 
-                value: stats.todayAppointments, 
-                color: "blue",
-                icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-              },
-              { 
-                label: "Completed", 
-                value: stats.completedAppointments, 
-                color: "green",
-                icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-              },
-              { 
-                label: "Pending", 
-                value: stats.pendingAppointments, 
-                color: "yellow",
-                icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-              },
-              { 
-                label: "Total Patients", 
-                value: stats.totalAppointments, 
-                color: "purple",
-                icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-              }
-            ].map((stat, index) => (
-              <div key={index} className="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow duration-200">
-                <div className="p-5">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                      <div className={`w-8 h-8 bg-${stat.color}-500 rounded-full flex items-center justify-center`}>
-                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={stat.icon} />
-                        </svg>
-                      </div>
+          {/* Stats Grid - Original 4 cards + Today's Revenue */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+            {/* Today's Appointments - Original */}
+            <div className="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow duration-200">
+              <div className="p-4">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
                     </div>
-                    <div className="ml-5 w-0 flex-1">
-                      <dl>
-                        <dt className="text-sm font-medium text-gray-500 truncate">{stat.label}</dt>
-                        <dd className="text-lg font-medium text-gray-900">{stat.value}</dd>
-                      </dl>
-                    </div>
+                  </div>
+                  <div className="ml-3 w-0 flex-1">
+                    <dt className="text-xs font-medium text-gray-500 truncate">Today's Appts</dt>
+                    <dd className="text-lg font-medium text-gray-900">{stats.todayAppointments}</dd>
                   </div>
                 </div>
               </div>
-            ))}
+            </div>
+
+            {/* Completed - Original */}
+            <div className="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow duration-200">
+              <div className="p-4">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="ml-3 w-0 flex-1">
+                    <dt className="text-xs font-medium text-gray-500 truncate">Completed</dt>
+                    <dd className="text-lg font-medium text-gray-900">{stats.completedAppointments}</dd>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Pending - Original */}
+            <div className="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow duration-200">
+              <div className="p-4">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center">
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="ml-3 w-0 flex-1">
+                    <dt className="text-xs font-medium text-gray-500 truncate">Pending</dt>
+                    <dd className="text-lg font-medium text-gray-900">{stats.pendingAppointments}</dd>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Total Patients - Original */}
+            <div className="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow duration-200">
+              <div className="p-4">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="ml-3 w-0 flex-1">
+                    <dt className="text-xs font-medium text-gray-500 truncate">Total Patients</dt>
+                    <dd className="text-lg font-medium text-gray-900">{stats.totalAppointments}</dd>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Today's Revenue - NEW */}
+            <div className="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow duration-200">
+              <div className="p-4">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center">
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="ml-3 w-0 flex-1">
+                    <dt className="text-xs font-medium text-gray-500 truncate">Today's Revenue</dt>
+                    <dd className="text-lg font-medium text-gray-900">{formatCurrency(revenue.summary?.todayRevenue || 0)}</dd>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
+          {/* REVENUE SECTION - NEW */}
+          <div className="mb-8">
+            <div className="bg-white shadow rounded-lg overflow-hidden">
+              <div className="px-4 py-5 sm:px-6 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                <div>
+                  <h3 className="text-lg leading-6 font-medium text-gray-900">
+                    Revenue Overview
+                  </h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Your earnings from completed appointments
+                  </p>
+                </div>
+                <div className="mt-3 sm:mt-0 flex items-center space-x-2">
+                  <select
+                    value={revenuePeriod}
+                    onChange={(e) => {
+                      setRevenuePeriod(e.target.value);
+                      const doctorId = localStorage.getItem("doctorId");
+                      fetchRevenue(doctorId, e.target.value);
+                    }}
+                    className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                  >
+                    <option value="day">Today</option>
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                    <option value="year">This Year</option>
+                  </select>
+                </div>
+              </div>
+
+              {loadingRevenue ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="mt-2 text-sm text-gray-500">Loading revenue data...</p>
+                </div>
+              ) : (
+                <>
+                  {/* Revenue Stats */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4">
+                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4">
+                      <p className="text-sm text-blue-600 font-medium">Total Revenue</p>
+                      <p className="text-2xl font-bold text-blue-900">{formatCurrency(revenue.summary?.totalRevenue || 0)}</p>
+                      <p className="text-xs text-blue-600 mt-1">{revenue.summary?.completedCount || 0} appointments</p>
+                    </div>
+                    
+                    <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4">
+                      <p className="text-sm text-green-600 font-medium">Monthly Revenue</p>
+                      <p className="text-2xl font-bold text-green-900">{formatCurrency(revenue.summary?.monthlyRevenue || 0)}</p>
+                      <p className="text-xs text-green-600 mt-1">This month</p>
+                    </div>
+                    
+                    <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg p-4">
+                      <p className="text-sm text-yellow-600 font-medium">Pending Payments</p>
+                      <p className="text-2xl font-bold text-yellow-900">{formatCurrency(revenue.summary?.pendingPayments || 0)}</p>
+                      <p className="text-xs text-yellow-600 mt-1">{revenue.summary?.pendingCount || 0} pending appointments</p>
+                    </div>
+                    
+                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4">
+                      <p className="text-sm text-purple-600 font-medium">Average per Visit</p>
+                      <p className="text-2xl font-bold text-purple-900">{formatCurrency(revenue.summary?.avgPerAppointment || 0)}</p>
+                      <p className="text-xs text-purple-600 mt-1">Per appointment</p>
+                    </div>
+                  </div>
+
+                  {/* Revenue by Type */}
+                  {revenue.breakdown?.byType && (
+                    <div className="border-t border-gray-200 px-4 py-5">
+                      <h4 className="text-sm font-medium text-gray-700 mb-3">Revenue by Consultation Type</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-sm text-gray-600">Online Consultations</span>
+                            <span className="text-sm font-medium text-gray-900">{formatCurrency(revenue.breakdown.byType.online || 0)}</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-blue-600 h-2 rounded-full" 
+                              style={{ width: `${revenue.breakdown.byType.onlinePercentage || 0}%` }}
+                            ></div>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {revenue.breakdown.byType.onlinePercentage || 0}% of total
+                          </p>
+                        </div>
+                        <div>
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-sm text-gray-600">Physical Consultations</span>
+                            <span className="text-sm font-medium text-gray-900">{formatCurrency(revenue.breakdown.byType.physical || 0)}</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-green-600 h-2 rounded-full" 
+                              style={{ width: `${revenue.breakdown.byType.physicalPercentage || 0}%` }}
+                            ></div>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {revenue.breakdown.byType.physicalPercentage || 0}% of total
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Original Two Column Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Recent Appointments */}
+            {/* Recent Appointments - Original */}
             <div className="lg:col-span-2">
               <div className="bg-white shadow rounded-lg">
                 <div className="px-4 py-5 sm:px-6 border-b border-gray-200 flex justify-between items-center">
@@ -382,7 +633,7 @@ const DoctorDashboard = () => {
                   </button>
                 </div>
                 <div className="divide-y divide-gray-200">
-                  {/* {recentAppointments.length > 0 ? (
+                  {recentAppointments.length > 0 ? (
                     recentAppointments.map((appointment) => (
                       <div key={appointment._id || appointment.id} className="px-4 py-4 sm:px-6 hover:bg-gray-50 transition duration-150">
                         <div className="flex items-center justify-between">
@@ -399,7 +650,7 @@ const DoctorDashboard = () => {
                                 {appointment.patientName}
                               </div>
                               <div className="text-sm text-gray-500">
-                                {formatTime(appointment.time)} • {appointment.type}
+                                {formatTime(appointment.time)} • {appointment.type} • {formatCurrency(appointment.price)}
                               </div>
                             </div>
                           </div>
@@ -414,7 +665,7 @@ const DoctorDashboard = () => {
                         </div>
                       </div>
                     ))
-                  ) : ( */}
+                  ) : (
                     <div className="px-4 py-8 text-center">
                       <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -422,14 +673,14 @@ const DoctorDashboard = () => {
                       <h3 className="mt-2 text-sm font-medium text-gray-900">No appointments</h3>
                       <p className="mt-1 text-sm text-gray-500">You don't have any appointments scheduled for today.</p>
                     </div>
-                  
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Quick Actions & Profile Summary */}
+            {/* Quick Actions & Profile Summary - Original */}
             <div className="space-y-6">
-              {/* Quick Actions */}
+              {/* Quick Actions - Original */}
               <div className="bg-white shadow rounded-lg">
                 <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
                   <h3 className="text-lg leading-6 font-medium text-gray-900">
@@ -438,7 +689,7 @@ const DoctorDashboard = () => {
                 </div>
                 <div className="p-4 space-y-3">
                   <Link
-                    to=  {`/doctor/${doctorData?._id}`}
+                    to={`/doctor/${doctorData?._id}`}
                     className="flex items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition duration-200 group"
                   >
                     <svg className="w-5 h-5 text-gray-400 mr-3 group-hover:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -477,7 +728,7 @@ const DoctorDashboard = () => {
                     <span className="text-sm font-medium text-gray-700 group-hover:text-blue-600">Medical Records</span>
                   </button>
 
-                   <button 
+                  <button 
                     onClick={() => navigate(`/doctor/feedbacks/${doctorData?._id}`)}
                     className="flex items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition duration-200 w-full text-left group"
                   >
@@ -486,17 +737,10 @@ const DoctorDashboard = () => {
                     </svg>
                     <span className="text-sm font-medium text-gray-700 group-hover:text-blue-600">View Feedbacks</span>
                   </button>
-
-
-
-
-
-
-                  
                 </div>
               </div>
 
-              {/* Profile Summary */}
+              {/* Profile Summary - Original */}
               <div className="bg-white shadow rounded-lg">
                 <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
                   <h3 className="text-lg leading-6 font-medium text-gray-900">

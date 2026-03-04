@@ -91,10 +91,7 @@ exports.login = async (req, res) => {
     }
 };
 
-// ======================
-// GET ALL ADMINS
-// ======================
-// getAllAdmins function එකේ permission check remove කරන්න
+
 exports.getAllAdmins = async (req, res) => {
     try {
         const token = req.headers.authorization?.split(' ')[1];

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Box,
@@ -31,7 +32,8 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
-  Divider
+  Divider,
+  Tooltip
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -53,20 +55,50 @@ import {
   LocalHospital as HospitalIcon,
   List as ListIcon,
   EventAvailable as EventIcon,
-  Group as GroupIcon
+  Group as GroupIcon,
+  MonetizationOn as RevenueIcon,
+  TrendingUp as TrendingUpIcon,
+  TrendingDown as TrendingDownIcon,
+  Download as DownloadIcon,
+  FileDownload as FileDownloadIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
 
 const AdminDashboard = () => {
   const [admin, setAdmin] = useState(null);
   const [admins, setAdmins] = useState([]);
+  const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingRevenue, setLoadingRevenue] = useState(false);
   const [stats, setStats] = useState({
     totalAdmins: 0,
     activeAdmins: 0,
-    superAdmins: 0
+    superAdmins: 0,
+    totalDoctors: 0,
+    activeDoctors: 0
   });
+  
+  // Revenue State
+  const [revenue, setRevenue] = useState({
+    totalRevenue: 0,
+    todayRevenue: 0,
+    monthlyRevenue: 0,
+    pendingPayments: 0,
+    completedCount: 0,
+    pendingCount: 0,
+    doctors: [],
+    revenueByDoctor: [],
+    revenueByMonth: [],
+    revenueByType: {
+      online: 0,
+      physical: 0,
+      onlinePercentage: 0,
+      physicalPercentage: 0
+    }
+  });
+
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedAdmin, setSelectedAdmin] = useState(null);
   const [dialogMode, setDialogMode] = useState('view');
@@ -83,6 +115,11 @@ const AdminDashboard = () => {
     severity: 'error'
   });
   const [activeMenu, setActiveMenu] = useState('dashboard');
+  const [revenuePeriod, setRevenuePeriod] = useState('month');
+  const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [doctorRevenueDialog, setDoctorRevenueDialog] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  
   const navigate = useNavigate();
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -142,12 +179,13 @@ const AdminDashboard = () => {
     }
 
     try {
-      // Verify token by fetching profile
       const response = await api.get('/admin/profile');
       if (response.data.success) {
         setAdmin(response.data.data);
         localStorage.setItem('admin', JSON.stringify(response.data.data));
         fetchAllAdmins();
+        fetchAllDoctors();
+        fetchAllRevenue('month');
       }
     } catch (error) {
       console.error('Auth check failed:', error);
@@ -173,11 +211,12 @@ const AdminDashboard = () => {
         const active = response.data.data?.filter(a => a.isActive)?.length || 0;
         const superAdmins = response.data.data?.filter(a => a.role === 'super_admin')?.length || 0;
         
-        setStats({
+        setStats(prev => ({
+          ...prev,
           totalAdmins: total,
           activeAdmins: active,
           superAdmins: superAdmins
-        });
+        }));
         
         setSnackbar({
           open: true,
@@ -204,6 +243,273 @@ const AdminDashboard = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Fetch all doctors
+  const fetchAllDoctors = async () => {
+    try {
+      const response = await api.get('/doctors');
+      if (response.data) {
+        const doctorsList = response.data || [];
+        setDoctors(doctorsList);
+        setStats(prev => ({
+          ...prev,
+          totalDoctors: doctorsList.length,
+          activeDoctors: doctorsList.filter(d => d.isActive).length
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching doctors:', error);
+    }
+  };
+
+  // Fetch all revenue from all doctors
+  const fetchAllRevenue = async (period = 'month') => {
+    setLoadingRevenue(true);
+    try {
+      console.log(`📊 Fetching all doctors revenue for period: ${period}`);
+      
+      const doctorsResponse = await api.get('/doctors');
+      const doctorsList = doctorsResponse.data || [];
+      
+      let totalRevenue = 0;
+      let todayRevenue = 0;
+      let monthlyRevenue = 0;
+      let pendingPayments = 0;
+      let completedCount = 0;
+      let pendingCount = 0;
+      let onlineRevenue = 0;
+      let physicalRevenue = 0;
+      
+      const revenueByDoctor = [];
+      
+      for (const doctor of doctorsList) {
+        try {
+          const revenueResponse = await axios.get(
+            `${API_URL}/doctors/public/${doctor._id}/revenue?period=${period}`
+          );
+          
+          if (revenueResponse.data.success) {
+            const doctorRevenue = revenueResponse.data.summary;
+            
+            totalRevenue += doctorRevenue.totalRevenue || 0;
+            todayRevenue += doctorRevenue.todayRevenue || 0;
+            monthlyRevenue += doctorRevenue.monthlyRevenue || 0;
+            pendingPayments += doctorRevenue.pendingPayments || 0;
+            completedCount += doctorRevenue.completedCount || 0;
+            pendingCount += doctorRevenue.pendingCount || 0;
+            
+            if (revenueResponse.data.breakdown?.byType) {
+              onlineRevenue += revenueResponse.data.breakdown.byType.online || 0;
+              physicalRevenue += revenueResponse.data.breakdown.byType.physical || 0;
+            }
+            
+            revenueByDoctor.push({
+              doctorId: doctor._id,
+              doctorName: `Dr. ${doctor.firstName || ''} ${doctor.lastName || ''}`.trim(),
+              specialization: doctor.specialization || 'N/A',
+              ...doctorRevenue
+            });
+          }
+        } catch (err) {
+          console.log(`Error fetching revenue for doctor ${doctor._id}:`, err.message);
+        }
+      }
+      
+      revenueByDoctor.sort((a, b) => b.totalRevenue - a.totalRevenue);
+      
+      setRevenue({
+        totalRevenue,
+        todayRevenue,
+        monthlyRevenue,
+        pendingPayments,
+        completedCount,
+        pendingCount,
+        doctors: doctorsList,
+        revenueByDoctor,
+        revenueByType: {
+          online: onlineRevenue,
+          physical: physicalRevenue,
+          onlinePercentage: totalRevenue > 0 ? Math.round((onlineRevenue / totalRevenue) * 100) : 0,
+          physicalPercentage: totalRevenue > 0 ? Math.round((physicalRevenue / totalRevenue) * 100) : 0
+        }
+      });
+      
+    } catch (error) {
+      console.error('Error fetching all revenue:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to fetch revenue data',
+        severity: 'error'
+      });
+    } finally {
+      setLoadingRevenue(false);
+    }
+  };
+
+  // ✅ Excel Download Function
+  const downloadRevenueExcel = () => {
+    setDownloading(true);
+    try {
+      // Create workbook
+      const wb = XLSX.utils.book_new();
+
+      // 1. Summary Sheet
+      const summaryData = [
+        ['REVENUE SUMMARY REPORT'],
+        ['Generated On', new Date().toLocaleString()],
+        ['Period', revenuePeriod.toUpperCase()],
+        ['Generated By', admin?.name || 'Admin'],
+        [],
+        ['Metric', 'Amount (LKR)', 'Count'],
+        ['Total Revenue', revenue.totalRevenue, revenue.completedCount],
+        ['Today\'s Revenue', revenue.todayRevenue, '-'],
+        ['Monthly Revenue', revenue.monthlyRevenue, '-'],
+        ['Pending Payments', revenue.pendingPayments, revenue.pendingCount],
+        ['Online Revenue', revenue.revenueByType.online, '-'],
+        ['Physical Revenue', revenue.revenueByType.physical, '-']
+      ];
+      
+      const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+      XLSX.utils.book_append_sheet(wb, summarySheet, 'Summary');
+
+      // 2. Revenue by Type Sheet
+      const typeData = [
+        ['REVENUE BY CONSULTATION TYPE'],
+        [],
+        ['Type', 'Revenue (LKR)', 'Percentage'],
+        ['Online', revenue.revenueByType.online, `${revenue.revenueByType.onlinePercentage}%`],
+        ['Physical', revenue.revenueByType.physical, `${revenue.revenueByType.physicalPercentage}%`],
+        [],
+        ['TOTAL', revenue.totalRevenue, '100%']
+      ];
+      
+      const typeSheet = XLSX.utils.aoa_to_sheet(typeData);
+      XLSX.utils.book_append_sheet(wb, typeSheet, 'By Type');
+
+      // 3. Doctors Revenue Sheet
+      const doctorsData = [
+        ['DOCTORS REVENUE BREAKDOWN'],
+        [],
+        ['Doctor Name', 'Specialization', 'Total Revenue', 'Today', 'Monthly', 'Pending', 'Completed', 'Pending Appts']
+      ];
+      
+      revenue.revenueByDoctor.forEach(doc => {
+        doctorsData.push([
+          doc.doctorName,
+          doc.specialization,
+          doc.totalRevenue || 0,
+          doc.todayRevenue || 0,
+          doc.monthlyRevenue || 0,
+          doc.pendingPayments || 0,
+          doc.completedCount || 0,
+          doc.pendingCount || 0
+        ]);
+      });
+
+      // Add totals row
+      doctorsData.push([]);
+      doctorsData.push([
+        'TOTAL',
+        '-',
+        revenue.totalRevenue,
+        revenue.todayRevenue,
+        revenue.monthlyRevenue,
+        revenue.pendingPayments,
+        revenue.completedCount,
+        revenue.pendingCount
+      ]);
+      
+      const doctorsSheet = XLSX.utils.aoa_to_sheet(doctorsData);
+      XLSX.utils.book_append_sheet(wb, doctorsSheet, 'Doctors Revenue');
+
+      // 4. Statistics Sheet
+      const statsData = [
+        ['SYSTEM STATISTICS'],
+        [],
+        ['Metric', 'Value'],
+        ['Total Doctors', stats.totalDoctors],
+        ['Active Doctors', stats.activeDoctors],
+        ['Total Admins', stats.totalAdmins],
+        ['Active Admins', stats.activeAdmins],
+        ['Super Admins', stats.superAdmins],
+        ['Completed Appointments', revenue.completedCount],
+        ['Pending Appointments', revenue.pendingCount],
+        ['Average per Doctor', revenue.totalDoctors > 0 ? revenue.totalRevenue / revenue.totalDoctors : 0]
+      ];
+      
+      const statsSheet = XLSX.utils.aoa_to_sheet(statsData);
+      XLSX.utils.book_append_sheet(wb, statsSheet, 'Statistics');
+
+      // Download the file
+      const fileName = `Revenue_Report_${new Date().toISOString().split('T')[0]}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+      
+      setSnackbar({
+        open: true,
+        message: 'Revenue report downloaded successfully!',
+        severity: 'success'
+      });
+      
+    } catch (error) {
+      console.error('Error downloading Excel:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to download revenue report',
+        severity: 'error'
+      });
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  // ✅ Download Doctor's Individual Report
+  const downloadDoctorRevenueExcel = (doctor) => {
+    try {
+      const wb = XLSX.utils.book_new();
+
+      const doctorData = [
+        [`DOCTOR REVENUE REPORT - ${doctor.doctorName}`],
+        ['Generated On', new Date().toLocaleString()],
+        ['Period', revenuePeriod.toUpperCase()],
+        ['Specialization', doctor.specialization],
+        [],
+        ['Metric', 'Amount (LKR)'],
+        ['Total Revenue', doctor.totalRevenue || 0],
+        ['Today\'s Revenue', doctor.todayRevenue || 0],
+        ['Monthly Revenue', doctor.monthlyRevenue || 0],
+        ['Pending Payments', doctor.pendingPayments || 0],
+        [],
+        ['Appointments', 'Count'],
+        ['Completed Appointments', doctor.completedCount || 0],
+        ['Pending Appointments', doctor.pendingCount || 0]
+      ];
+      
+      const sheet = XLSX.utils.aoa_to_sheet(doctorData);
+      XLSX.utils.book_append_sheet(wb, sheet, 'Doctor Revenue');
+
+      const fileName = `${doctor.doctorName.replace(/\s+/g, '_')}_Revenue_${new Date().toISOString().split('T')[0]}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+      
+      setSnackbar({
+        open: true,
+        message: `${doctor.doctorName}'s report downloaded!`,
+        severity: 'success'
+      });
+      
+    } catch (error) {
+      console.error('Error downloading doctor report:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to download doctor report',
+        severity: 'error'
+      });
+    }
+  };
+
+  const handleViewDoctorRevenue = (doctor) => {
+    setSelectedDoctor(doctor);
+    setDoctorRevenueDialog(true);
   };
 
   const handleLogout = () => {
@@ -328,10 +634,18 @@ const AdminDashboard = () => {
     setSnackbar({ ...snackbar, open: false });
   };
 
-  // Navigation handlers
   const handleNavigation = (path, menuName) => {
     setActiveMenu(menuName);
     navigate(path);
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-LK', {
+      style: 'currency',
+      currency: 'LKR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
   };
 
   if (!admin) {
@@ -359,7 +673,6 @@ const AdminDashboard = () => {
       icon: <DoctorIcon />,
       subItems: [
         { name: 'add-doctor', label: 'Add Doctor', path: '/doctor/register' },
-        // { name: 'list-doctors', label: 'View All Doctors', path: '/editdoctor' },
         { name: 'edit-doctors', label: 'Edit Doctors', path: '/editdoctor' }
       ]
     },
@@ -367,7 +680,7 @@ const AdminDashboard = () => {
       name: 'appointments',
       label: 'Appointment Management',
       icon: <AppointmentIcon />,
-      path: '/admin/appointments'
+      path: '/appointmentsmanagement'
     },
     {
       name: 'users',
@@ -377,6 +690,12 @@ const AdminDashboard = () => {
         { name: 'view-users', label: 'View Users', path: '/usersmanagement' },
         { name: 'add-user', label: 'Add User', path: '/register' }
       ]
+    },
+    {
+      name: 'revenue',
+      label: 'Revenue Overview',
+      icon: <RevenueIcon />,
+      path: '/admin/revenue'
     },
     {
       name: 'admin-management',
@@ -496,13 +815,29 @@ const AdminDashboard = () => {
       <Box sx={{ flexGrow: 1, p: 3, ml: '280px' }}>
         <Container maxWidth="lg">
           {/* Header */}
-          <Box sx={{ mb: 4 }}>
-            <Typography variant="h4" gutterBottom>
-              Admin Dashboard
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Welcome back, {admin.name}!
-            </Typography>
+          <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box>
+              <Typography variant="h4" gutterBottom>
+                Admin Dashboard
+              </Typography>
+              <Typography variant="body1" color="text.secondary">
+                Welcome back, {admin.name}!
+              </Typography>
+            </Box>
+            
+            {/* Download Button */}
+            <Tooltip title="Download Revenue Report">
+              <Button
+                variant="contained"
+                color="success"
+                startIcon={<FileDownloadIcon />}
+                onClick={downloadRevenueExcel}
+                disabled={downloading || loadingRevenue}
+                sx={{ height: 48 }}
+              >
+                {downloading ? 'Downloading...' : 'Download Report'}
+              </Button>
+            </Tooltip>
           </Box>
 
           {error && (
@@ -513,7 +848,7 @@ const AdminDashboard = () => {
 
           {/* Stats Cards */}
           <Grid container spacing={3} sx={{ mb: 4 }}>
-            <Grid item xs={12} sm={6} md={4}>
+            <Grid item xs={12} sm={6} md={3}>
               <Card>
                 <CardContent>
                   <Typography color="text.secondary" gutterBottom>
@@ -530,43 +865,272 @@ const AdminDashboard = () => {
                 </CardContent>
               </Card>
             </Grid>
-            <Grid item xs={12} sm={6} md={4}>
+            <Grid item xs={12} sm={6} md={3}>
               <Card>
                 <CardContent>
                   <Typography color="text.secondary" gutterBottom>
-                    Active Admins
+                    Total Doctors
                   </Typography>
                   <Typography variant="h4">
-                    {stats.activeAdmins}
+                    {stats.totalDoctors}
                   </Typography>
                   <LinearProgress 
                     variant="determinate" 
-                    value={(stats.activeAdmins / stats.totalAdmins) * 100 || 0} 
+                    value={(stats.activeDoctors / stats.totalDoctors) * 100 || 0} 
                     color="success"
                     sx={{ mt: 2 }}
                   />
                 </CardContent>
               </Card>
             </Grid>
-            <Grid item xs={12} sm={6} md={4}>
+            <Grid item xs={12} sm={6} md={3}>
               <Card>
                 <CardContent>
                   <Typography color="text.secondary" gutterBottom>
-                    Super Admins
+                    Total Revenue
                   </Typography>
                   <Typography variant="h4">
-                    {stats.superAdmins}
+                    {formatCurrency(revenue.totalRevenue)}
                   </Typography>
                   <LinearProgress 
                     variant="determinate" 
-                    value={(stats.superAdmins / stats.totalAdmins) * 100 || 0} 
+                    value={100} 
                     color="warning"
                     sx={{ mt: 2 }}
                   />
                 </CardContent>
               </Card>
             </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Card>
+                <CardContent>
+                  <Typography color="text.secondary" gutterBottom>
+                    Pending Payments
+                  </Typography>
+                  <Typography variant="h4">
+                    {formatCurrency(revenue.pendingPayments)}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {revenue.pendingCount} pending appointments
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
           </Grid>
+
+          {/* Revenue Overview Section */}
+          <Paper sx={{ p: 3, mb: 4 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+              <Typography variant="h6">
+                Revenue Overview
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <select
+                  value={revenuePeriod}
+                  onChange={(e) => {
+                    setRevenuePeriod(e.target.value);
+                    fetchAllRevenue(e.target.value);
+                  }}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '4px',
+                    border: '1px solid #ccc'
+                  }}
+                >
+                  <option value="day">Today</option>
+                  <option value="week">This Week</option>
+                  <option value="month">This Month</option>
+                  <option value="year">This Year</option>
+                </select>
+                <IconButton onClick={() => fetchAllRevenue(revenuePeriod)} title="Refresh">
+                  <RefreshIcon />
+                </IconButton>
+              </Box>
+            </Box>
+
+            {loadingRevenue ? (
+              <Box display="flex" justifyContent="center" alignItems="center" p={3} flexDirection="column">
+                <CircularProgress />
+                <Typography variant="body2" sx={{ mt: 2 }}>
+                  Loading revenue data...
+                </Typography>
+              </Box>
+            ) : (
+              <>
+                {/* Revenue Stats */}
+                <Grid container spacing={3} sx={{ mb: 4 }}>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Box sx={{ bgcolor: 'primary.light', p: 2, borderRadius: 2 }}>
+                      <Typography variant="body2" color="white">Today's Revenue</Typography>
+                      <Typography variant="h5" color="white" fontWeight="bold">
+                        {formatCurrency(revenue.todayRevenue)}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Box sx={{ bgcolor: 'success.light', p: 2, borderRadius: 2 }}>
+                      <Typography variant="body2" color="white">Monthly Revenue</Typography>
+                      <Typography variant="h5" color="white" fontWeight="bold">
+                        {formatCurrency(revenue.monthlyRevenue)}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Box sx={{ bgcolor: 'warning.light', p: 2, borderRadius: 2 }}>
+                      <Typography variant="body2" color="white">Completed</Typography>
+                      <Typography variant="h5" color="white" fontWeight="bold">
+                        {revenue.completedCount}
+                      </Typography>
+                      <Typography variant="caption" color="white">appointments</Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Box sx={{ bgcolor: 'info.light', p: 2, borderRadius: 2 }}>
+                      <Typography variant="body2" color="white">Pending</Typography>
+                      <Typography variant="h5" color="white" fontWeight="bold">
+                        {revenue.pendingCount}
+                      </Typography>
+                      <Typography variant="caption" color="white">appointments</Typography>
+                    </Box>
+                  </Grid>
+                </Grid>
+
+                {/* Revenue by Type */}
+                <Grid container spacing={3} sx={{ mb: 4 }}>
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="subtitle1" gutterBottom>
+                      Revenue by Consultation Type
+                    </Typography>
+                    <Box sx={{ mb: 2 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                        <Typography variant="body2">Online Consultations</Typography>
+                        <Typography variant="body2" fontWeight="bold">
+                          {formatCurrency(revenue.revenueByType.online)}
+                        </Typography>
+                      </Box>
+                      <LinearProgress 
+                        variant="determinate" 
+                        value={revenue.revenueByType.onlinePercentage} 
+                        color="primary"
+                        sx={{ height: 10, borderRadius: 5 }}
+                      />
+                      <Typography variant="caption" color="text.secondary">
+                        {revenue.revenueByType.onlinePercentage}% of total
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                        <Typography variant="body2">Physical Consultations</Typography>
+                        <Typography variant="body2" fontWeight="bold">
+                          {formatCurrency(revenue.revenueByType.physical)}
+                        </Typography>
+                      </Box>
+                      <LinearProgress 
+                        variant="determinate" 
+                        value={revenue.revenueByType.physicalPercentage} 
+                        color="success"
+                        sx={{ height: 10, borderRadius: 5 }}
+                      />
+                      <Typography variant="caption" color="text.secondary">
+                        {revenue.revenueByType.physicalPercentage}% of total
+                      </Typography>
+                    </Box>
+                  </Grid>
+                </Grid>
+              </>
+            )}
+          </Paper>
+
+          {/* Doctors Revenue Table */}
+          <Paper sx={{ p: 2, mb: 4 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h6">
+                Doctors Revenue Breakdown
+              </Typography>
+              <Tooltip title="Download All Doctors Revenue">
+                <IconButton 
+                  color="primary" 
+                  onClick={downloadRevenueExcel}
+                  disabled={downloading}
+                >
+                  <FileDownloadIcon />
+                </IconButton>
+              </Tooltip>
+            </Box>
+            
+            {loadingRevenue ? (
+              <Box display="flex" justifyContent="center" alignItems="center" p={3}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Doctor</TableCell>
+                      <TableCell>Specialization</TableCell>
+                      <TableCell align="right">Total Revenue</TableCell>
+                      <TableCell align="right">Today</TableCell>
+                      <TableCell align="right">Monthly</TableCell>
+                      <TableCell align="right">Pending</TableCell>
+                      <TableCell align="right">Completed</TableCell>
+                      <TableCell>Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {revenue.revenueByDoctor.map((doctor) => (
+                      <TableRow key={doctor.doctorId} hover>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Avatar sx={{ mr: 2, bgcolor: 'primary.main' }}>
+                              {doctor.doctorName?.charAt(0) || 'D'}
+                            </Avatar>
+                            {doctor.doctorName}
+                          </Box>
+                        </TableCell>
+                        <TableCell>{doctor.specialization}</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                          {formatCurrency(doctor.totalRevenue)}
+                        </TableCell>
+                        <TableCell align="right">{formatCurrency(doctor.todayRevenue)}</TableCell>
+                        <TableCell align="right">{formatCurrency(doctor.monthlyRevenue)}</TableCell>
+                        <TableCell align="right">{formatCurrency(doctor.pendingPayments)}</TableCell>
+                        <TableCell align="right">{doctor.completedCount}</TableCell>
+                        <TableCell>
+                          <Tooltip title="View Details">
+                            <IconButton 
+                              size="small"
+                              onClick={() => handleViewDoctorRevenue(doctor)}
+                            >
+                              <RevenueIcon />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Download Report">
+                            <IconButton 
+                              size="small"
+                              onClick={() => downloadDoctorRevenueExcel(doctor)}
+                              color="success"
+                            >
+                              <FileDownloadIcon />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {revenue.revenueByDoctor.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={8} align="center" sx={{ py: 3 }}>
+                          <Typography color="text.secondary">
+                            No revenue data available
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </Paper>
 
           {/* Quick Actions */}
           <Paper sx={{ p: 3, mb: 4 }}>
@@ -579,7 +1143,7 @@ const AdminDashboard = () => {
                   fullWidth
                   variant="contained"
                   startIcon={<AddIcon />}
-                  onClick={() => handleNavigation('/admin/doctors/add', 'add-doctor')}
+                  onClick={() => handleNavigation('/doctor/register', 'add-doctor')}
                 >
                   Add Doctor
                 </Button>
@@ -589,9 +1153,9 @@ const AdminDashboard = () => {
                   fullWidth
                   variant="outlined"
                   startIcon={<DoctorIcon />}
-                  onClick={() => handleNavigation('/admin/doctors', 'list-doctors')}
+                  onClick={() => handleNavigation('/editdoctor', 'edit-doctors')}
                 >
-                  View Doctors
+                  Edit Doctors
                 </Button>
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
@@ -609,7 +1173,7 @@ const AdminDashboard = () => {
                   fullWidth
                   variant="outlined"
                   startIcon={<GroupIcon />}
-                  onClick={() => handleNavigation('/admin/users', 'view-users')}
+                  onClick={() => handleNavigation('/usersmanagement', 'view-users')}
                 >
                   User Management
                 </Button>
@@ -759,7 +1323,7 @@ const AdminDashboard = () => {
         </Container>
       </Box>
 
-      {/* View/Edit Dialog */}
+      {/* View/Edit Admin Dialog */}
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
           {dialogMode === 'view' ? 'Admin Details' : 'Edit Admin'}
@@ -834,6 +1398,95 @@ const AdminDashboard = () => {
               Update
             </Button>
           )}
+        </DialogActions>
+      </Dialog>
+
+      {/* Doctor Revenue Details Dialog */}
+      <Dialog open={doctorRevenueDialog} onClose={() => setDoctorRevenueDialog(false)} maxWidth="md" fullWidth>
+        <DialogTitle>
+          Doctor Revenue Details
+        </DialogTitle>
+        <DialogContent>
+          {selectedDoctor && (
+            <Box sx={{ pt: 2 }}>
+              <Typography variant="h6" gutterBottom>
+                {selectedDoctor.doctorName}
+              </Typography>
+              <Typography color="text.secondary" gutterBottom>
+                Specialization: {selectedDoctor.specialization}
+              </Typography>
+              
+              <Grid container spacing={3} sx={{ mt: 2 }}>
+                <Grid item xs={6}>
+                  <Paper sx={{ p: 2, bgcolor: 'primary.light' }}>
+                    <Typography variant="body2" color="white">Total Revenue</Typography>
+                    <Typography variant="h6" color="white" fontWeight="bold">
+                      {formatCurrency(selectedDoctor.totalRevenue)}
+                    </Typography>
+                  </Paper>
+                </Grid>
+                <Grid item xs={6}>
+                  <Paper sx={{ p: 2, bgcolor: 'success.light' }}>
+                    <Typography variant="body2" color="white">Monthly Revenue</Typography>
+                    <Typography variant="h6" color="white" fontWeight="bold">
+                      {formatCurrency(selectedDoctor.monthlyRevenue)}
+                    </Typography>
+                  </Paper>
+                </Grid>
+                <Grid item xs={6}>
+                  <Paper sx={{ p: 2, bgcolor: 'warning.light' }}>
+                    <Typography variant="body2" color="white">Today's Revenue</Typography>
+                    <Typography variant="h6" color="white" fontWeight="bold">
+                      {formatCurrency(selectedDoctor.todayRevenue)}
+                    </Typography>
+                  </Paper>
+                </Grid>
+                <Grid item xs={6}>
+                  <Paper sx={{ p: 2, bgcolor: 'info.light' }}>
+                    <Typography variant="body2" color="white">Pending Payments</Typography>
+                    <Typography variant="h6" color="white" fontWeight="bold">
+                      {formatCurrency(selectedDoctor.pendingPayments)}
+                    </Typography>
+                  </Paper>
+                </Grid>
+              </Grid>
+
+              <Box sx={{ mt: 3 }}>
+                <Typography variant="body1" gutterBottom>
+                  Appointment Statistics
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 4 }}>
+                  <Box>
+                    <Typography variant="h6">{selectedDoctor.completedCount}</Typography>
+                    <Typography variant="body2" color="text.secondary">Completed</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="h6">{selectedDoctor.pendingCount}</Typography>
+                    <Typography variant="body2" color="text.secondary">Pending</Typography>
+                  </Box>
+                </Box>
+              </Box>
+
+              <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+                <Button
+                  variant="contained"
+                  color="success"
+                  startIcon={<FileDownloadIcon />}
+                  onClick={() => {
+                    downloadDoctorRevenueExcel(selectedDoctor);
+                    setDoctorRevenueDialog(false);
+                  }}
+                >
+                  Download Report
+                </Button>
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDoctorRevenueDialog(false)} variant="outlined">
+            Close
+          </Button>
         </DialogActions>
       </Dialog>
 

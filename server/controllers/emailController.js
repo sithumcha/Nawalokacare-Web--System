@@ -39,7 +39,7 @@ const sendConsultationLinkEmail = async (req, res) => {
     const mailOptions = {
       // from: `"Medical Consultation" <${process.env.SMTP_USER}>`,
       from: {
-  name: process.env.EMAIL_NAME || 'Naawloka Hospital',
+  name: process.env.EMAIL_NAME || 'Nawloka Hospital',
   address: process.env.EMAIL_FROM || 'sithumchanukasandaruwan2002@gmail.com'
 },
       to: to,

@@ -15,45 +15,7 @@ const Navbar = () => {
     }
   }, []);
 
-  // const handleLogout = () => {
-  //   localStorage.removeItem('token');
-  //   localStorage.removeItem('user');
-  //   setUser(null);
-  //   navigate('/login');
-  //   setIsDropdownOpen(false);
-  // };
-
-
-
-
-//   const handleLogout = () => {
-//   // ✅ Get current user ID before logout
-//   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-//   const currentUserId = currentUser._id;
   
-//   if (currentUserId) {
-//     // ✅ Save as last logged out user
-//     localStorage.setItem('lastLoggedOutUserId', currentUserId);
-//     console.log('User logged out. ID:', currentUserId);
-    
-//     // Optional: Save to sessionStorage as well
-//     sessionStorage.setItem('lastLoggedOutUserId', currentUserId);
-//   }
-
-//   // ✅ Clear current user data
-//   localStorage.removeItem('token');
-//   localStorage.removeItem('user');
-//   localStorage.removeItem('currentUserId');
-//   setUser(null);
-  
-//   // Navigate to login
-//   navigate('/login');
-//   setIsDropdownOpen(false);
-// };
-
-
-////////////////////
-
 
 // Logout Function
 const handleLogout = () => {
@@ -95,7 +57,7 @@ const handleLogout = () => {
                 <span className="text-white font-bold text-lg">🏥</span>
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">MediCare+</h1>
+                <h1 className="text-xl font-bold text-gray-900">NawalokaCare+</h1>
                 <p className="text-xs text-gray-500">Hospital & Health Center</p>
               </div>
             </Link>

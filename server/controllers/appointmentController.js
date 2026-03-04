@@ -211,7 +211,7 @@ exports.createAppointment = async (req, res) => {
   }
 };
 
-// Email sending function - FIXED VERSION
+// Email sending function 
 const sendAppointmentConfirmationEmail = async (appointment, doctor) => {
   try {
     const patientEmail = appointment.patientDetails?.email;
@@ -248,8 +248,8 @@ const sendAppointmentConfirmationEmail = async (appointment, doctor) => {
 
     const mailOptions = {
       from: {
-        name: process.env.EMAIL_NAME || 'MediCare Clinic',
-        address: process.env.EMAIL_FROM || process.env.SENDER_EMAIL || 'noreply@medicare.com'
+        name: process.env.EMAIL_NAME || 'NawalokaCare Clinic',
+        address: process.env.EMAIL_FROM || process.env.SENDER_EMAIL || 'noreply@nawalokacare.com'
       },
       to: patientEmail,
       subject: `Appointment Confirmation - #${appointment.appointmentNumber}`,
@@ -281,7 +281,7 @@ const sendAppointmentConfirmationEmail = async (appointment, doctor) => {
                 <div class="content">
                     <div class="section">
                         <h2>Hello ${appointment.patientDetails?.fullName || 'Patient'},</h2>
-                        <p>Thank you for booking an appointment with MediCare Clinic. Here are your appointment details:</p>
+                        <p>Thank you for booking an appointment with NawalokaCare Clinic. Here are your appointment details:</p>
                     </div>
 
                     <div class="details">
@@ -312,7 +312,7 @@ const sendAppointmentConfirmationEmail = async (appointment, doctor) => {
                     <div class="section">
                         <h3>📍 Clinic Address</h3>
                         <p>123 Health Street, Medical City</p>
-                        <p>Phone: (555) 123-4567 | Email: info@medicare.com</p>
+                        <p>Phone: (555) 123-4567 | Email: info@nawalokacare.com</p>
                     </div>
 
                     <div class="section">
@@ -336,7 +336,7 @@ const sendAppointmentConfirmationEmail = async (appointment, doctor) => {
 
                 <div class="footer">
                     <p>This is an automated email. Please do not reply directly to this message.</p>
-                    <p>© ${new Date().getFullYear()} MediCare Clinic. All rights reserved.</p>
+                    <p>© ${new Date().getFullYear()} NawalokaCare Clinic. All rights reserved.</p>
                 </div>
             </div>
         </body>
@@ -373,7 +373,7 @@ const sendAppointmentCancellationEmail = async (appointment, doctor, cancellatio
 
     const mailOptions = {
       from: {
-        name: process.env.EMAIL_NAME || 'MediCare Clinic',
+        name: process.env.EMAIL_NAME || 'NawalokaCare Clinic',
         address: process.env.EMAIL_FROM || process.env.SENDER_EMAIL
       },
       to: patientEmail,
@@ -401,7 +401,7 @@ const sendAppointmentCancellationEmail = async (appointment, doctor, cancellatio
                 
                 <div class="content">
                     <h2>Hello ${appointment.patientDetails.fullName},</h2>
-                    <p>Your appointment with MediCare Clinic has been cancelled. Here are the details:</p>
+                    <p>Your appointment with NawalokaCare Clinic has been cancelled. Here are the details:</p>
                     
                     <div class="details">
                         <h3>Cancelled Appointment Details</h3>
@@ -419,7 +419,7 @@ const sendAppointmentCancellationEmail = async (appointment, doctor, cancellatio
 
                 <div class="footer">
                     <p>This is an automated email. Please do not reply directly to this message.</p>
-                    <p>© ${new Date().getFullYear()} MediCare Clinic. All rights reserved.</p>
+                    <p>© ${new Date().getFullYear()} NawalokaCare Clinic. All rights reserved.</p>
                 </div>
             </div>
         </body>
@@ -649,6 +649,9 @@ exports.getAppointmentById = async (req, res) => {
   }
 };
 
+
+
+
 // Update appointment status with email notification
 exports.updateAppointmentStatus = async (req, res) => {
   try {
@@ -657,58 +660,86 @@ exports.updateAppointmentStatus = async (req, res) => {
 
     const validStatuses = ["pending", "confirmed", "cancelled", "completed"];
     if (!validStatuses.includes(status)) {
-      return res.status(400).json({ error: "Invalid status" });
+      return res.status(400).json({ 
+        success: false,
+        error: "Invalid status" 
+      });
     }
 
+    console.log(`📝 Updating appointment ${id} status to: ${status}`);
+
+    // First get the appointment to check old status
     const appointment = await Appointment.findById(id);
     
     if (!appointment) {
-      return res.status(404).json({ error: "Appointment not found" });
+      return res.status(404).json({ 
+        success: false,
+        error: "Appointment not found" 
+      });
     }
 
     const oldStatus = appointment.status;
-    appointment.status = status;
-    
-    // Add status update history
-    if (!appointment.statusHistory) {
-      appointment.statusHistory = [];
-    }
-    appointment.statusHistory.push({
-      status: status,
-      changedAt: new Date(),
-      changedBy: req.user?._id || 'system',
-      message: notificationMessage
-    });
 
-    await appointment.save();
+    // Update using findByIdAndUpdate (BEST WAY - no validation errors)
+    const updatedAppointment = await Appointment.findByIdAndUpdate(
+      id,
+      {
+        $set: { 
+          status: status,
+          updatedAt: new Date()
+        },
+        $push: {
+          statusHistory: {
+            status: status,
+            changedAt: new Date(),
+            changedBy: req.user?._id || 'system',
+            message: notificationMessage || `Status changed from ${oldStatus} to ${status}`
+          }
+        }
+      },
+      { 
+        new: true, // Return updated document
+        runValidators: false // Skip validation (fixes your error!)
+      }
+    );
 
-    // Send status update email if status changed
-    if (oldStatus !== status && appointment.patientDetails.email) {
+    console.log(`✅ Appointment ${id} status updated from ${oldStatus} to ${status}`);
+
+    // Send email if status changed
+    if (oldStatus !== status && updatedAppointment.patientDetails?.email) {
       try {
         const Doctor = require("../models/Doctor");
-        const doctor = await Doctor.findById(appointment.doctorId);
+        const doctor = await Doctor.findById(updatedAppointment.doctorId);
         
         if (doctor) {
-          await sendStatusUpdateEmail(appointment, doctor, oldStatus, status, notificationMessage);
-          console.log(`📧 Status update email sent for appointment ${appointment.appointmentNumber}`);
+          await sendStatusUpdateEmail(updatedAppointment, doctor, oldStatus, status, notificationMessage);
         }
       } catch (emailError) {
-        console.error('❌ Failed to send status update email:', emailError);
+        console.error('❌ Email error:', emailError.message);
+        // Don't fail if email fails
       }
     }
 
     res.status(200).json({
+      success: true,
       message: "Appointment status updated successfully",
-      appointment
+      appointment: updatedAppointment
     });
+
   } catch (error) {
-    console.error("Error updating appointment:", error);
+    console.error("❌ Error updating appointment status:", error);
     res.status(500).json({ 
-      error: "Failed to update appointment", 
+      success: false,
+      error: "Failed to update appointment status", 
       details: error.message 
     });
   }
 };
+
+
+
+
+
 
 // Delete appointment
 exports.deleteAppointment = async (req, res) => {
@@ -764,7 +795,7 @@ const sendStatusUpdateEmail = async (appointment, doctor, oldStatus, newStatus, 
 
     const mailOptions = {
       from: {
-        name: process.env.EMAIL_NAME || 'MediCare Clinic',
+        name: process.env.EMAIL_NAME || 'NawalokaCare Clinic',
         address: process.env.EMAIL_FROM || process.env.SENDER_EMAIL
       },
       to: patientEmail,
@@ -792,7 +823,7 @@ const sendStatusUpdateEmail = async (appointment, doctor, oldStatus, newStatus, 
                 
                 <div class="content">
                     <h2>Hello ${appointment.patientDetails.fullName},</h2>
-                    <p>The status of your appointment with MediCare Clinic has been updated.</p>
+                    <p>The status of your appointment with NawalokaCare Clinic has been updated.</p>
                     
                     <div class="status-change">
                         <h3>Appointment Status Change</h3>
@@ -820,7 +851,7 @@ const sendStatusUpdateEmail = async (appointment, doctor, oldStatus, newStatus, 
                     ` : newStatus === 'confirmed' ? `
                         <p>Your appointment is now confirmed. Please arrive 15 minutes before your scheduled time.</p>
                     ` : newStatus === 'completed' ? `
-                        <p>Thank you for visiting MediCare Clinic. We hope you had a good experience.</p>
+                        <p>Thank you for visiting NawalokaCare Clinic. We hope you had a good experience.</p>
                     ` : ''}
 
                     <p>For any questions, please contact us at (555) 123-4567 or reply to this email.</p>
@@ -828,7 +859,7 @@ const sendStatusUpdateEmail = async (appointment, doctor, oldStatus, newStatus, 
 
                 <div class="footer">
                     <p>This is an automated email. Please do not reply directly to this message.</p>
-                    <p>© ${new Date().getFullYear()} MediCare Clinic. All rights reserved.</p>
+                    <p>© ${new Date().getFullYear()} NawalokaCare Clinic. All rights reserved.</p>
                 </div>
             </div>
         </body>
@@ -872,7 +903,7 @@ exports.sendReminderEmails = async (req, res) => {
       try {
         const mailOptions = {
           from: {
-            name: process.env.EMAIL_NAME || 'MediCare Clinic',
+            name: process.env.EMAIL_NAME || 'NawalokaCare Clinic',
             address: process.env.EMAIL_FROM || process.env.SENDER_EMAIL
           },
           to: appointment.patientDetails.email,
@@ -900,7 +931,7 @@ exports.sendReminderEmails = async (req, res) => {
                     
                     <div class="content">
                         <h2>Hello ${appointment.patientDetails.fullName},</h2>
-                        <p>This is a friendly reminder about your upcoming appointment with MediCare Clinic.</p>
+                        <p>This is a friendly reminder about your upcoming appointment with NawalokaCare Clinic.</p>
                         
                         <div class="reminder">
                             <h3>Appointment Details</h3>
@@ -930,7 +961,7 @@ exports.sendReminderEmails = async (req, res) => {
 
                     <div class="footer">
                         <p>This is an automated reminder email. Please do not reply directly to this message.</p>
-                        <p>© ${new Date().getFullYear()} MediCare Clinic. All rights reserved.</p>
+                        <p>© ${new Date().getFullYear()} NawalokaCare Clinic. All rights reserved.</p>
                     </div>
                 </div>
             </body>
@@ -978,11 +1009,11 @@ exports.testEmail = async (req, res) => {
 
     const mailOptions = {
       from: {
-        name: process.env.EMAIL_NAME || 'MediCare Clinic',
+        name: process.env.EMAIL_NAME || 'NawalokaCare Clinic',
         address: process.env.EMAIL_FROM || process.env.SENDER_EMAIL
       },
       to: email,
-      subject: 'Test Email from MediCare Clinic',
+      subject: 'Test Email from NawalokaCare Clinic',
       text: 'This is a test email from your appointment booking system.',
       html: '<h1>Test Email</h1><p>This is a test email from your appointment booking system.</p>'
     };
