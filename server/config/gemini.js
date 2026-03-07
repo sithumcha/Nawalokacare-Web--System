@@ -29,8 +29,8 @@ ${dynamicContext}
     contents,
     config: {
       systemInstruction: SYSTEM,
-      temperature: 0.4,
-      maxOutputTokens: 500,
+      temperature: 0.3,
+      maxOutputTokens: 3000,
     },
   });
 
