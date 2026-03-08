@@ -2,8 +2,7 @@
 
 A comprehensive hospital management system with appointment booking, doctor management, and AI-powered chatbot integration.
 
-## 🏥 Live Demo
-[Add your live demo link here]
+
 
 ## 📋 Table of Contents
 - [Features](#features)
@@ -90,6 +89,7 @@ A comprehensive hospital management system with appointment booking, doctor mana
 - MongoDB
 - npm or yarn
 - Git
+
 
 
 
